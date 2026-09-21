@@ -1,10 +1,17 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.wilayah import WilayahProvince, WilayahRegency
-from app.schemas.wilayah import WilayahProvinceItem, WilayahRegencyItem
+from app.models.user import User
+from app.schemas.wilayah import (
+    WilayahProvinceItem,
+    WilayahProvinceCreate,
+    WilayahProvinceUpdate,
+    WilayahRegencyItem
+)
+from app.api.v1.deps import get_current_admin
 
 router = APIRouter()
 
@@ -21,9 +28,9 @@ def get_provinces(
     query = db.query(WilayahProvince)
     if wilayah:
         query = query.filter(WilayahProvince.wilayah.ilike(f"%{wilayah}%"))
-    
+
     provinces = query.order_by(WilayahProvince.kode.asc()).all()
-    
+
     return [
         WilayahProvinceItem(
             id=p.kode,
@@ -34,6 +41,88 @@ def get_provinces(
         )
         for p in provinces
     ]
+
+
+@router.post("/provinces", response_model=WilayahProvinceItem, status_code=status.HTTP_201_CREATED)
+def create_province(
+    payload: WilayahProvinceCreate,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Tambah provinsi baru ke database.
+    """
+    existing = db.query(WilayahProvince).filter(WilayahProvince.kode == payload.kode).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Provinsi dengan kode '{payload.kode}' sudah ada ({existing.nama})"
+        )
+
+    prov = WilayahProvince(
+        kode=payload.kode.strip(),
+        nama=payload.nama.strip(),
+        wilayah=payload.wilayah.strip()
+    )
+    db.add(prov)
+    db.commit()
+    db.refresh(prov)
+    return WilayahProvinceItem(
+        id=prov.kode,
+        kode=prov.kode,
+        nama=prov.nama,
+        name=prov.nama,
+        wilayah=prov.wilayah
+    )
+
+
+@router.put("/provinces/{kode}", response_model=WilayahProvinceItem)
+def update_province(
+    kode: str,
+    payload: WilayahProvinceUpdate,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Ubah data provinsi (nama atau kelompok wilayah).
+    """
+    prov = db.query(WilayahProvince).filter(WilayahProvince.kode == kode).first()
+    if not prov:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provinsi tidak ditemukan")
+
+    if payload.nama is not None:
+        prov.nama = payload.nama.strip()
+    if payload.wilayah is not None:
+        prov.wilayah = payload.wilayah.strip()
+
+    db.commit()
+    db.refresh(prov)
+    return WilayahProvinceItem(
+        id=prov.kode,
+        kode=prov.kode,
+        nama=prov.nama,
+        name=prov.nama,
+        wilayah=prov.wilayah
+    )
+
+
+@router.delete("/provinces/{kode}", status_code=status.HTTP_200_OK)
+def delete_province(
+    kode: str,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Hapus data provinsi dari database.
+    """
+    prov = db.query(WilayahProvince).filter(WilayahProvince.kode == kode).first()
+    if not prov:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provinsi tidak ditemukan")
+
+    nama = prov.nama
+    db.delete(prov)
+    db.commit()
+    return {"status": "success", "message": f"Provinsi '{nama}' berhasil dihapus"}
 
 
 @router.get("/regencies", response_model=List[WilayahRegencyItem])
@@ -70,4 +159,3 @@ def get_regencies(
         )
         for r in regencies
     ]
-

@@ -20,3 +20,18 @@ class KSTCategoriesGrouped(BaseModel):
     tipe_fasilitas: List[str]
     potensi_kolaborasi: List[str]
     raw: List[KSTCategoryItem]
+
+
+class KSTCategoryCreate(BaseModel):
+    tipe: str
+    nama: str
+    slug: Optional[str] = None
+    urutan: Optional[int] = 0
+    is_active: Optional[bool] = True
+
+
+class KSTCategoryUpdate(BaseModel):
+    nama: Optional[str] = None
+    slug: Optional[str] = None
+    urutan: Optional[int] = None
+    is_active: Optional[bool] = None

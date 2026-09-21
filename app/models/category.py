@@ -13,3 +13,4 @@ class KSTCategory(Base):
     slug = Column(String(100), nullable=False, index=True)
     urutan = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+

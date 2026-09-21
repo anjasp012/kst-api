@@ -13,6 +13,17 @@ class WilayahProvinceItem(BaseModel):
         from_attributes = True
 
 
+class WilayahProvinceCreate(BaseModel):
+    kode: str
+    nama: str
+    wilayah: str
+
+
+class WilayahProvinceUpdate(BaseModel):
+    nama: Optional[str] = None
+    wilayah: Optional[str] = None
+
+
 class WilayahRegencyItem(BaseModel):
     id: str
     kode: str
@@ -24,4 +35,3 @@ class WilayahRegencyItem(BaseModel):
 
     class Config:
         from_attributes = True
-
