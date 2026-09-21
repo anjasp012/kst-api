@@ -24,3 +24,4 @@ class WilayahRegencyItem(BaseModel):
 
     class Config:
         from_attributes = True
+

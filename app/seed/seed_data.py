@@ -14,6 +14,7 @@ from app.models import (
     RegionalPartner
 )
 from app.seed.seed_wilayah import seed_wilayah_data
+from app.seed.seed_categories import seed_categories_data
 
 
 def seed_database():
@@ -518,6 +519,9 @@ def seed_database():
 
         # 4. Wilayah Indonesia (38 Provinsi & 514 Kab/Kota)
         seed_wilayah_data()
+
+        # 5. Master Kategori KST (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi)
+        seed_categories_data()
 
         print("\n[+] ALL KST & POSTGIS SEEDING COMPLETED SUCCESSFULLY!")
 

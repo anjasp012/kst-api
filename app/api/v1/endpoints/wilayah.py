@@ -70,3 +70,4 @@ def get_regencies(
         )
         for r in regencies
     ]
+

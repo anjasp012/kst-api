@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, admin, kst, wilayah
+from app.api.v1.endpoints import auth, admin, kst, wilayah, category
 
 api_router = APIRouter()
 
@@ -8,6 +8,18 @@ api_router.include_router(
     kst.router,
     prefix="/kst",
     tags=["KST & Geospatial (Wonderful BRIN)"]
+)
+
+# 🏷️ Master Kategori KST (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi)
+api_router.include_router(
+    category.router,
+    prefix="/kst/categories",
+    tags=["Master Kategori KST"]
+)
+api_router.include_router(
+    category.router,
+    prefix="/categories",
+    tags=["Master Kategori KST"]
 )
 
 # 🇮🇩 Wilayah Indonesia (38 Provinsi & 514 Kota/Kabupaten)

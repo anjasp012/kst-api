@@ -79,3 +79,4 @@ def seed_wilayah_data():
         raise
     finally:
         db.close()
+

@@ -109,3 +109,4 @@ def seed_wilayah():
 
 if __name__ == "__main__":
     seed_wilayah()
+

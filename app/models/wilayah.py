@@ -22,3 +22,4 @@ class WilayahRegency(Base):
     tipe = Column(String(20), nullable=True)  # Kabupaten / Kota
 
     province = relationship("WilayahProvince", back_populates="regencies")
+

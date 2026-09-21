@@ -29,6 +29,10 @@ from app.schemas.wilayah import (
     WilayahProvinceItem,
     WilayahRegencyItem,
 )
+from app.schemas.category import (
+    KSTCategoryItem,
+    KSTCategoriesGrouped,
+)
 
 __all__ = [
     "LoginRequest",
@@ -50,4 +54,6 @@ __all__ = [
     "KSTAnalyticsResponse",
     "WilayahProvinceItem",
     "WilayahRegencyItem",
+    "KSTCategoryItem",
+    "KSTCategoriesGrouped",
 ]
