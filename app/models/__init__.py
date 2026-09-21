@@ -4,6 +4,9 @@ from app.models.kst import KSTLocation
 from app.models.partner import RegionalPartner
 from app.models.wilayah import WilayahProvince, WilayahRegency
 from app.models.category import KSTCategory
+from app.models.theme import KSTThemeRiset
+from app.models.facility import KSTFacility
+from app.models.collaboration import KSTCollaboration
 
 __all__ = [
     "Base",
@@ -13,4 +16,7 @@ __all__ = [
     "WilayahProvince",
     "WilayahRegency",
     "KSTCategory",
+    "KSTThemeRiset",
+    "KSTFacility",
+    "KSTCollaboration",
 ]

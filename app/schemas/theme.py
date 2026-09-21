@@ -1,13 +1,13 @@
 import uuid
-from typing import List, Dict, Any, Optional
+from typing import Optional
 from pydantic import BaseModel
 
 
-class KSTCategoryItem(BaseModel):
+class ThemeRisetItem(BaseModel):
     id: uuid.UUID
-    tipe: str
     nama: str
     slug: str
+    deskripsi: Optional[str] = None
     urutan: int
     is_active: bool
 
@@ -15,23 +15,17 @@ class KSTCategoryItem(BaseModel):
         from_attributes = True
 
 
-class KSTCategoriesGrouped(BaseModel):
-    tema_riset: List[str]
-    tipe_fasilitas: List[str]
-    potensi_kolaborasi: List[str]
-    raw: Optional[List[Any]] = []
-
-
-class KSTCategoryCreate(BaseModel):
-    tipe: str
+class ThemeRisetCreate(BaseModel):
     nama: str
     slug: Optional[str] = None
+    deskripsi: Optional[str] = None
     urutan: Optional[int] = 0
     is_active: Optional[bool] = True
 
 
-class KSTCategoryUpdate(BaseModel):
+class ThemeRisetUpdate(BaseModel):
     nama: Optional[str] = None
     slug: Optional[str] = None
+    deskripsi: Optional[str] = None
     urutan: Optional[int] = None
     is_active: Optional[bool] = None
