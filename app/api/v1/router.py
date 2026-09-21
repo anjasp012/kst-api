@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, admin, kst
+from app.api.v1.endpoints import auth, admin, kst, wilayah
 
 api_router = APIRouter()
 
@@ -8,6 +8,18 @@ api_router.include_router(
     kst.router,
     prefix="/kst",
     tags=["KST & Geospatial (Wonderful BRIN)"]
+)
+
+# 🇮🇩 Wilayah Indonesia (38 Provinsi & 514 Kota/Kabupaten)
+api_router.include_router(
+    wilayah.router,
+    prefix="/kst/wilayah",
+    tags=["Wilayah Indonesia"]
+)
+api_router.include_router(
+    wilayah.router,
+    prefix="/wilayah",
+    tags=["Wilayah Indonesia"]
 )
 
 # 🔐 Authentication (Login, Refresh Token, Profile)

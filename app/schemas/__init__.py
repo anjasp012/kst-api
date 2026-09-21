@@ -25,6 +25,10 @@ from app.schemas.admin import (
     UploadResponse,
     KSTAnalyticsResponse,
 )
+from app.schemas.wilayah import (
+    WilayahProvinceItem,
+    WilayahRegencyItem,
+)
 
 __all__ = [
     "LoginRequest",
@@ -44,4 +48,6 @@ __all__ = [
     "PartnerUpdate",
     "UploadResponse",
     "KSTAnalyticsResponse",
+    "WilayahProvinceItem",
+    "WilayahRegencyItem",
 ]

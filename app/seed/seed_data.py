@@ -13,6 +13,7 @@ from app.models import (
     KSTLocation,
     RegionalPartner
 )
+from app.seed.seed_wilayah import seed_wilayah_data
 
 
 def seed_database():
@@ -514,6 +515,9 @@ def seed_database():
             db.add(part_obj)
         db.commit()
         print(f"[+] {len(partners_data)} Regional Partners seeded successfully!")
+
+        # 4. Wilayah Indonesia (38 Provinsi & 514 Kab/Kota)
+        seed_wilayah_data()
 
         print("\n[+] ALL KST & POSTGIS SEEDING COMPLETED SUCCESSFULLY!")
 
