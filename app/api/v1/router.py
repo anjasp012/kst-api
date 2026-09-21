@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     theme,
     facility,
     collaboration,
+    dampak,
 )
 
 api_router = APIRouter()
@@ -43,6 +44,18 @@ api_router.include_router(
     collaboration.router,
     prefix="/kst/collaborations",
     tags=["Potensi Kolaborasi (kst_collaborations)"]
+)
+
+# 🏆 4. Tabel Terpisah: Pilar Dampak KST (kst_dampak)
+api_router.include_router(
+    dampak.router,
+    prefix="/kst/dampak",
+    tags=["Pilar Dampak (kst_dampak)"]
+)
+api_router.include_router(
+    dampak.router,
+    prefix="/kst/impacts",
+    tags=["Pilar Dampak (kst_dampak)"]
 )
 
 # 🏷️ Master Kategori Gabungan (Aggregated dari 3 tabel di atas)
