@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends
-from app.api.v1.endpoints import auth, table, admin, kst
-from app.api.v1.deps import verify_table_access_token
+from fastapi import APIRouter
+from app.api.v1.endpoints import auth, admin, kst
 
 api_router = APIRouter()
 
@@ -18,15 +17,7 @@ api_router.include_router(
     tags=["Authentication"]
 )
 
-# 🖥️ Interactive Table (Membutuhkan header X-Access-Token dari .env)
-api_router.include_router(
-    table.router,
-    prefix="/table",
-    tags=["Interactive Table (Public)"],
-    dependencies=[Depends(verify_table_access_token)]
-)
-
-# ⚙️ Admin CMS (Membutuhkan JWT Bearer Token)
+# ⚙️ Admin CMS (Upload Media & Statistik)
 api_router.include_router(
     admin.router,
     prefix="/admin",

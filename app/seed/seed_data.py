@@ -10,11 +10,6 @@ from app.db.session import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import (
     User,
-    Persona,
-    Zone,
-    Innovation,
-    InnovationPersonaRelevance,
-    ResearchSuggestion,
     KSTLocation,
     RegionalPartner
 )

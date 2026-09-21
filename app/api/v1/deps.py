@@ -1,38 +1,16 @@
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
 from app.core.security import decode_token
 
-# 🔐 CMS Admin Bearer JWT Scheme (Clean, no OAuth2 scopes/forms)
+# 🔐 CMS Admin Bearer JWT Scheme
 cms_bearer_scheme = HTTPBearer(
     auto_error=False,
     description="Masukkan JWT Token (didapatkan dari POST /api/v1/auth/login)"
 )
-
-# 🖥️ Interactive Table Access Token Header (from .env)
-table_token_header = APIKeyHeader(
-    name="X-Access-Token",
-    auto_error=False
-)
-
-
-def verify_table_access_token(
-    access_token: Optional[str] = Security(table_token_header)
-) -> str:
-    """
-    Validasi header X-Access-Token untuk semua request Layar Meja Interaktif.
-    Nilai harus cocok dengan ACCESS_TOKEN di file .env.
-    """
-    if not access_token or access_token != settings.ACCESS_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Akses ditolak: Header 'X-Access-Token' tidak valid atau tidak disertakan."
-        )
-    return access_token
 
 
 def get_current_admin(
