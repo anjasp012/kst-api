@@ -115,3 +115,4 @@ def delete_facility(
     db.delete(item)
     db.commit()
     return {"status": "success", "message": f"Fasilitas '{nama}' berhasil dihapus"}
+

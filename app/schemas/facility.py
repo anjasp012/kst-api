@@ -29,3 +29,4 @@ class FacilityUpdate(BaseModel):
     deskripsi: Optional[str] = None
     urutan: Optional[int] = None
     is_active: Optional[bool] = None
+

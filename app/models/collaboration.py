@@ -16,3 +16,4 @@ class KSTCollaboration(Base):
     deskripsi = Column(String(255), nullable=True)
     urutan = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+

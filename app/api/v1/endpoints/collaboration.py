@@ -115,3 +115,4 @@ def delete_collaboration(
     db.delete(item)
     db.commit()
     return {"status": "success", "message": f"Potensi kolaborasi '{nama}' berhasil dihapus"}
+

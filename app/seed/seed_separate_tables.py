@@ -10,27 +10,28 @@ from app.models.facility import KSTFacility
 from app.models.collaboration import KSTCollaboration
 
 THEME_DATA = [
-    {"nama": "Energi & Material", "slug": "energi-material", "urutan": 1},
-    {"nama": "Kesehatan", "slug": "kesehatan", "urutan": 2},
-    {"nama": "Pangan & Pertanian", "slug": "pangan-pertanian", "urutan": 3},
-    {"nama": "Lingkungan", "slug": "lingkungan", "urutan": 4},
-    {"nama": "Teknologi Digital", "slug": "teknologi-digital", "urutan": 5},
-    {"nama": "Maritim", "slug": "maritim", "urutan": 6},
+    {"nama": "Energi & Material", "slug": "energi-material", "deskripsi": "Fokus pada material maju, energi baru terbarukan, dan efisiensi energi nasional.", "urutan": 1},
+    {"nama": "Kesehatan", "slug": "kesehatan", "deskripsi": "Pengembangan riset obat, vaksin, diagnostik, dan teknologi kedokteran terpadu.", "urutan": 2},
+    {"nama": "Pangan & Pertanian", "slug": "pangan-pertanian", "deskripsi": "Inovasi benih unggul, teknologi pascapanen, dan penguatan ketahanan pangan.", "urutan": 3},
+    {"nama": "Lingkungan", "slug": "lingkungan", "deskripsi": "Konservasi keanekaragaman hayati, mitigasi perubahan iklim, dan pengelolaan ekosistem.", "urutan": 4},
+    {"nama": "Teknologi Digital", "slug": "teknologi-digital", "deskripsi": "Kecerdasan buatan, data raya, komputasi kinerja tinggi, dan keamanan siber.", "urutan": 5},
+    {"nama": "Maritim", "slug": "maritim", "deskripsi": "Riset oseanografi, bioteknologi kelautan, logistik maritim, dan keselamatan perairan.", "urutan": 6},
 ]
 
 FACILITY_DATA = [
-    {"nama": "Laboratorium", "slug": "laboratorium", "urutan": 1},
-    {"nama": "Observatorium", "slug": "observatorium", "urutan": 2},
-    {"nama": "Pilot Plant", "slug": "pilot-plant", "urutan": 3},
-    {"nama": "Akses Data & Koleksi", "slug": "akses-data-koleksi", "urutan": 4},
+    {"nama": "Laboratorium", "slug": "laboratorium", "deskripsi": "Fasilitas instrumentasi analitik, pengujian presisi, dan riset saintifik terakreditasi.", "urutan": 1},
+    {"nama": "Observatorium", "slug": "observatorium", "deskripsi": "Stasiun pengamatan fenomena atmosfer, antariksa, kebencanaan, dan geofisika.", "urutan": 2},
+    {"nama": "Pilot Plant", "slug": "pilot-plant", "deskripsi": "Fasilitas uji coba skala percontohan sebelum proses produksi massal dan hilirisasi.", "urutan": 3},
+    {"nama": "Akses Data & Koleksi", "slug": "akses-data-koleksi", "deskripsi": "Penyediaan repositori data riset terbuka, spesimen hayati, dan koleksi ilmiah nasional.", "urutan": 4},
 ]
 
 COLLABORATION_DATA = [
-    {"nama": "Industri", "slug": "industri", "urutan": 1},
-    {"nama": "Akademisi", "slug": "akademisi", "urutan": 2},
-    {"nama": "Pemerintah", "slug": "pemerintah", "urutan": 3},
-    {"nama": "Komunitas", "slug": "komunitas", "urutan": 4},
+    {"nama": "Industri", "slug": "industri", "deskripsi": "Kemitraan hilirisasi inovasi, alih teknologi komersial, dan pendampingan industri strategis.", "urutan": 1},
+    {"nama": "Akademisi", "slug": "akademisi", "deskripsi": "Kolaborasi penelitian bersama kampus, bimbingan mahasiswa, dan pertukaran periset.", "urutan": 2},
+    {"nama": "Pemerintah", "slug": "pemerintah", "deskripsi": "Dukungan data dan rekomendasi kebijakan berbasis bukti saintifik untuk instansi daerah.", "urutan": 3},
+    {"nama": "Komunitas", "slug": "komunitas", "deskripsi": "Penerapan teknologi tepat guna, literasi sains publik, dan pemberdayaan masyarakat lokal.", "urutan": 4},
 ]
+
 
 
 def seed_separate_tables():
@@ -47,11 +48,13 @@ def seed_separate_tables():
                 db.add(KSTThemeRiset(
                     nama=item["nama"],
                     slug=item["slug"],
+                    deskripsi=item["deskripsi"],
                     urutan=item["urutan"],
                     is_active=True
                 ))
             else:
                 existing.nama = item["nama"]
+                existing.deskripsi = item["deskripsi"]
                 existing.urutan = item["urutan"]
                 existing.is_active = True
 
@@ -63,11 +66,13 @@ def seed_separate_tables():
                 db.add(KSTFacility(
                     nama=item["nama"],
                     slug=item["slug"],
+                    deskripsi=item["deskripsi"],
                     urutan=item["urutan"],
                     is_active=True
                 ))
             else:
                 existing.nama = item["nama"]
+                existing.deskripsi = item["deskripsi"]
                 existing.urutan = item["urutan"]
                 existing.is_active = True
 
@@ -79,11 +84,13 @@ def seed_separate_tables():
                 db.add(KSTCollaboration(
                     nama=item["nama"],
                     slug=item["slug"],
+                    deskripsi=item["deskripsi"],
                     urutan=item["urutan"],
                     is_active=True
                 ))
             else:
                 existing.nama = item["nama"]
+                existing.deskripsi = item["deskripsi"]
                 existing.urutan = item["urutan"]
                 existing.is_active = True
 
@@ -117,3 +124,4 @@ def seed_separate_tables():
 
 if __name__ == "__main__":
     seed_separate_tables()
+

@@ -115,3 +115,4 @@ def delete_theme(
     db.delete(item)
     db.commit()
     return {"status": "success", "message": f"Tema riset '{nama}' berhasil dihapus"}
+
