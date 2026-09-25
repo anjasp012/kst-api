@@ -67,6 +67,7 @@ class KSTLocation(Base):
             return []
         themes = []
         for r in self.riset:
-            if r.get('tema') and r.get('tema') not in themes:
-                themes.append(r.get('tema'))
+            val = r.get('tema') or r.get('bidang')
+            if val and val not in themes:
+                themes.append(val)
         return themes

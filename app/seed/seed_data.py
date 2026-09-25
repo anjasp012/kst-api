@@ -272,8 +272,6 @@ def seed_database():
                 geom=geom,
                 deskripsi_profil=k["deskripsi_profil"],
                 peran_kawasan=k["peran_kawasan"],
-                fokus_utama=k["fokus_utama"],
-                terhubung_dengan=k["terhubung_dengan"],
                 fasilitas=k["fasilitas"],
                 riset=k["riset"],
                 dampak=k["dampak"],

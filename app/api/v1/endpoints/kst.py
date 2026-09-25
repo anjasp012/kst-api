@@ -61,7 +61,7 @@ def get_map_locations(
         fokus_lower = fokus.lower()
         results = [
             r for r in results 
-            if any(fokus_lower in str(item).lower() for item in (r.fokus_utama or []))
+            if any(fokus_lower in str(item).lower() for item in (r.tema_riset or []))
         ]
 
     if fasilitas:
@@ -117,7 +117,7 @@ def get_nearby_kst(
     """
     radius_meters = radius_km * 1000.0
     sql = text("""
-        SELECT id, nama, slug, kota_provinsi, wilayah, thumbnail_url, fokus_utama,
+        SELECT id, nama, slug, kota_provinsi, wilayah, thumbnail_url,
                latitude, longitude,
                ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000.0 AS distance_km
         FROM kst_locations
