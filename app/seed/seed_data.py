@@ -11,8 +11,10 @@ from app.core.security import get_password_hash
 from app.models import (
     User,
     KSTLocation,
+    KSTInstansi,
 )
 from app.seed.seed_separate_tables import seed_separate_tables
+from app.seed.seed_wilayah import seed_wilayah_data
 
 
 def seed_database():
@@ -25,19 +27,28 @@ def seed_database():
     Base.metadata.create_all(bind=engine)
     print("[+] Tables created successfully!")
 
+    # 1. Seed Master Kategori KST & Instansi terlebih dahulu
+    seed_separate_tables()
+
     db = SessionLocal()
     try:
-        # 1. Admin User
+        # 2. Admin User
         print("[+] Seeding Admin User...")
-        admin = User(
-            username="admin",
-            email="admin@brin.go.id",
-            hashed_password=get_password_hash("admin123"),
-            full_name="Administrator KST BRIN",
-            role="superadmin",
-            is_active=1
-        )
-        db.add(admin)
+        existing_admin = db.query(User).filter((User.username == "admin") | (User.email == "admin@brin.go.id")).first()
+        if not existing_admin:
+            admin = User(
+                username="admin",
+                email="admin@brin.go.id",
+                hashed_password=get_password_hash("admin123"),
+                full_name="Administrator KST BRIN",
+                role="superadmin",
+                is_active=1
+            )
+            db.add(admin)
+            db.commit()
+            print("[+] Admin user seeded.")
+        else:
+            print("[+] Admin user already exists.")
         
 
         # 2. Seeding KST Locations (Wonderful BRIN Interactive Map & Modal)
@@ -236,7 +247,13 @@ def seed_database():
             }
         ]
 
+        kst_inst = db.query(KSTInstansi).filter(KSTInstansi.slug == "kawasan-sains-kst").first()
+        kst_inst_id = kst_inst.id if kst_inst else None
+
         for k in kst_data:
+            existing_kst = db.query(KSTLocation).filter_by(slug=k["slug"]).first()
+            if existing_kst:
+                continue
             lat = k["latitude"]
             lon = k["longitude"]
             geom = WKTElement(f"POINT({lon} {lat})", srid=4326) if lat and lon else None
@@ -247,6 +264,7 @@ def seed_database():
                 kota_provinsi=k["kota_provinsi"],
                 pengelola=k["pengelola"],
                 status=k["status"],
+                instansi_id=kst_inst_id,
                 tahun_operasi=k["tahun_operasi"],
                 thumbnail_url=k["thumbnail_url"],
                 latitude=lat,
@@ -500,26 +518,35 @@ def seed_database():
             
             slug = p["nama_organisasi"].lower().replace(' ', '-') + '-' + str(lat)[:4].replace('.','')
             
+            existing_part = db.query(KSTLocation).filter_by(slug=slug).first()
+            if existing_part:
+                continue
+
+            inst_match = db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(p["jenis"])).first()
             part_obj = KSTLocation(
                 nama=p["nama_organisasi"],
                 slug=slug,
                 kota_provinsi=p["wilayah"],
                 pengelola="Mitra Daerah",
-                instansi_id=db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(p["jenis"])).first().id if db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(p["jenis"])).first() else None,
+                instansi_id=inst_match.id if inst_match else None,
                 alamat=p["alamat"],
                 telepon=p["telepon"],
                 website=p["website"],
                 email=p["email"],
                 latitude=lat,
                 longitude=lon,
-                geom=geom
+                geom=geom,
+                is_active=True
             )
             db.add(part_obj)
         db.commit()
         print(f"[+] {len(partners_data)} Regional Partners seeded successfully as KSTLocations!")
 
-        # 4. Master Kategori KST (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi, Dampak)
-        seed_separate_tables()
+        # 4. Seeding Wilayah Indonesia (38 Provinsi & 514 Kota/Kabupaten)
+        try:
+            seed_wilayah_data()
+        except Exception as e:
+            print(f"[!] Info seeding wilayah online: {e}")
 
         print("\n[+] ALL KST & POSTGIS SEEDING COMPLETED SUCCESSFULLY!")
 
