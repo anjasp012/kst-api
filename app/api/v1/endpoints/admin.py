@@ -9,7 +9,7 @@ from sqlalchemy import func
 from app.db.session import get_db
 from app.models.user import User
 from app.models.kst import KSTLocation
-from app.models.partner import RegionalPartner
+from app.models.instansi import KSTInstansi
 from app.schemas.admin import UploadResponse, KSTAnalyticsResponse
 from app.api.v1.deps import get_current_admin
 from app.core.helpers import build_full_url
@@ -30,13 +30,13 @@ def get_dashboard_analytics(
     """
     Statistik ringkasan KST dan sebaran mitra daerah BRIDA.
     """
-    total_kst = db.query(func.count(KSTLocation.id)).filter(KSTLocation.is_active == True).scalar() or 0
-    total_partners = db.query(func.count(RegionalPartner.id)).filter(RegionalPartner.is_active == True).scalar() or 0
+    total_kst = db.query(func.count(KSTLocation.id)).join(KSTInstansi).filter(KSTLocation.is_active == True, KSTInstansi.nama.ilike('%KST%')).scalar() or 0
+    total_partners = db.query(func.count(KSTLocation.id)).join(KSTInstansi).filter(KSTLocation.is_active == True, ~KSTInstansi.nama.ilike('%KST%')).scalar() or 0
 
     # Sebaran wilayah KST
     kst_by_wilayah = (
         db.query(KSTLocation.wilayah, func.count(KSTLocation.id))
-        .filter(KSTLocation.is_active == True)
+        .join(KSTInstansi).filter(KSTLocation.is_active == True, KSTInstansi.nama.ilike('%KST%'))
         .group_by(KSTLocation.wilayah)
         .all()
     )
@@ -44,9 +44,13 @@ def get_dashboard_analytics(
 
     # Sebaran jenis mitra (BRIDA, BAPPERIDA, BAPPEDA)
     partner_by_type = (
-        db.query(RegionalPartner.jenis, func.count(RegionalPartner.id))
+        db.query(KSTLocation.jenis, func.count(KSTLocation.id))
+        .filter(KSTLocation.is_active == True, KSTLocation.jenis != 'KST')
+        .group_by(KSTLocation.jenis)
+        .all()
+    
         .filter(RegionalPartner.is_active == True)
-        .group_by(RegionalPartner.jenis)
+        .group_by(KSTInstansi.nama)
         .all()
     )
     partner_type_distribution = {t or "Lainnya": count for t, count in partner_by_type}

@@ -9,6 +9,9 @@ from app.api.v1.router import api_router
 # Auto create tables on startup
 Base.metadata.create_all(bind=engine)
 
+from app.db.auto_migrate import run_auto_migration
+run_auto_migration(engine)
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     docs_url="/docs",

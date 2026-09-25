@@ -5,9 +5,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 from sqlalchemy import text
 from app.db.session import SessionLocal, Base, engine
+from app.models.instansi import KSTInstansi
 from app.models.theme import KSTThemeRiset
 from app.models.facility import KSTFacility
 from app.models.collaboration import KSTCollaboration
+
+
+INSTANSI_DATA = [
+    {"nama": "Kawasan Sains (KST)", "slug": "kawasan-sains-kst", "deskripsi": "Kawasan Sains dan Teknologi utama (KST).", "urutan": 1},
+    {"nama": "BRIDA", "slug": "brida", "deskripsi": "Badan Riset dan Inovasi Daerah.", "urutan": 2},
+    {"nama": "BAPPERIDA", "slug": "bapperida", "deskripsi": "Badan Perencanaan Pembangunan, Riset dan Inovasi Daerah.", "urutan": 3},
+    {"nama": "BAPPEDA", "slug": "bappeda", "deskripsi": "Badan Perencanaan Pembangunan Daerah.", "urutan": 4},
+]
 
 THEME_DATA = [
     {"nama": "Energi & Material", "slug": "energi-material", "deskripsi": "Fokus pada material maju, energi baru terbarukan, dan efisiensi energi nasional.", "urutan": 1},
@@ -41,6 +50,25 @@ def seed_separate_tables():
     db = SessionLocal()
     try:
         # 1. Seed / Migrate kst_themeriset
+        
+        # 0. Seed kst_instansi
+        print("[+] Seeding kst_instansi...")
+        for item in INSTANSI_DATA:
+            existing = db.query(KSTInstansi).filter_by(slug=item["slug"]).first()
+            if not existing:
+                db.add(KSTInstansi(
+                    nama=item["nama"],
+                    slug=item["slug"],
+                    deskripsi=item["deskripsi"],
+                    urutan=item["urutan"],
+                    is_active=True
+                ))
+            else:
+                existing.nama = item["nama"]
+                existing.deskripsi = item["deskripsi"]
+                existing.urutan = item["urutan"]
+                existing.is_active = True
+
         print("[+] Seeding kst_themeriset...")
         for item in THEME_DATA:
             existing = db.query(KSTThemeRiset).filter_by(slug=item["slug"]).first()
@@ -93,6 +121,7 @@ def seed_separate_tables():
                 existing.deskripsi = item["deskripsi"]
                 existing.urutan = item["urutan"]
                 existing.is_active = True
+
 
         db.commit()
 

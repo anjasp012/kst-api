@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, Text, Boolean, DateTime, JSON
+from sqlalchemy import Column, ForeignKey, String, Integer, Float, Text, Boolean, DateTime, JSON
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from geoalchemy2 import Geometry
 from app.db.session import Base
@@ -12,11 +13,17 @@ class KSTLocation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nama = Column(String(255), nullable=False)
     slug = Column(String(255), unique=True, index=True, nullable=False)
-    wilayah = Column(String(100), nullable=False, index=True)  # Sumatera, Jawa, Kalimantan, Sulawesi, Nusa Tenggara, Maluku & Papua
+    wilayah = Column(String(100), nullable=True, index=True)  # Optional / deprecated
     kota_provinsi = Column(String(255), nullable=False)        # e.g. Bandung, Jawa Barat
     pengelola = Column(String(150), default="BRIN", nullable=False)
-    status = Column(String(50), default="Aktif", nullable=False)
-    tahun_operasi = Column(Integer, default=2021, nullable=False)
+    status = Column(String(50), nullable=True)
+    instansi_id = Column(UUID(as_uuid=True), ForeignKey("kst_instansi.id"), nullable=True)
+    instansi = relationship("KSTInstansi")
+    telepon = Column(String(100), nullable=True)
+    website = Column(String(255), nullable=True)
+    email = Column(String(150), nullable=True)
+    alamat = Column(Text, nullable=True)
+    tahun_operasi = Column(Integer, nullable=True)
     thumbnail_url = Column(String(500), nullable=True)
 
     # Koordinat Spasial PostGIS
@@ -28,8 +35,6 @@ class KSTLocation(Base):
     # Tab 1: Profil
     deskripsi_profil = Column(Text, nullable=True)
     peran_kawasan = Column(Text, nullable=True)
-    fokus_utama = Column(JSON, default=list)        # ["Pangan", "Energi", "Laut", "Teknologi Digital"]
-    terhubung_dengan = Column(Text, nullable=True)  # "Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan."
 
     # Tab 2: Fasilitas
     fasilitas = Column(JSON, default=list)         # [{"nama": "Lab Biofarmaka", "tipe": "Laboratorium", "deskripsi": "..."}]
@@ -51,3 +56,17 @@ class KSTLocation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+    @property
+    def instansi_nama(self):
+        return self.instansi.nama if self.instansi else None
+
+    @property
+    def tema_riset(self):
+        if not self.riset:
+            return []
+        themes = []
+        for r in self.riset:
+            if r.get('tema') and r.get('tema') not in themes:
+                themes.append(r.get('tema'))
+        return themes

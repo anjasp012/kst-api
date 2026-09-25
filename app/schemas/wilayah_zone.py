@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class DampakItem(BaseModel):
+class WilayahZoneItem(BaseModel):
     id: uuid.UUID
     nama: str
     slug: str
@@ -15,7 +15,7 @@ class DampakItem(BaseModel):
         from_attributes = True
 
 
-class DampakCreate(BaseModel):
+class WilayahZoneCreate(BaseModel):
     nama: str
     slug: Optional[str] = None
     deskripsi: Optional[str] = None
@@ -23,7 +23,7 @@ class DampakCreate(BaseModel):
     is_active: Optional[bool] = True
 
 
-class DampakUpdate(BaseModel):
+class WilayahZoneUpdate(BaseModel):
     nama: Optional[str] = None
     slug: Optional[str] = None
     deskripsi: Optional[str] = None

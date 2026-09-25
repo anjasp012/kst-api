@@ -115,3 +115,4 @@ def delete_dampak(
     db.delete(item)
     db.commit()
     return {"status": "success", "message": f"Dampak '{nama}' berhasil dihapus"}
+

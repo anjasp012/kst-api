@@ -16,18 +16,9 @@ from app.schemas.kst import (
     KSTCreate,
     KSTUpdate,
 )
-from app.schemas.partner import (
-    PartnerResponse,
-    PartnerCreate,
-    PartnerUpdate,
-)
 from app.schemas.admin import (
     UploadResponse,
     KSTAnalyticsResponse,
-)
-from app.schemas.wilayah import (
-    WilayahProvinceItem,
-    WilayahRegencyItem,
 )
 from app.schemas.category import (
     KSTCategoryItem,
@@ -47,13 +38,8 @@ __all__ = [
     "KSTDetail",
     "KSTCreate",
     "KSTUpdate",
-    "PartnerResponse",
-    "PartnerCreate",
-    "PartnerUpdate",
     "UploadResponse",
     "KSTAnalyticsResponse",
-    "WilayahProvinceItem",
-    "WilayahRegencyItem",
     "KSTCategoryItem",
     "KSTCategoriesGrouped",
 ]

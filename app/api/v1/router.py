@@ -3,12 +3,13 @@ from app.api.v1.endpoints import (
     auth,
     admin,
     kst,
-    wilayah,
     category,
     theme,
     facility,
     collaboration,
     dampak,
+    wilayah,
+    instansi,
 )
 
 api_router = APIRouter()
@@ -58,6 +59,14 @@ api_router.include_router(
     tags=["Pilar Dampak (kst_dampak)"]
 )
 
+
+# 🇮🇩 6. Master Wilayah Indonesia: Provinsi & Kabupaten/Kota
+api_router.include_router(
+    wilayah.router,
+    prefix="/kst/wilayah",
+    tags=["Wilayah Indonesia (Provinsi & Kab/Kota)"]
+)
+
 # 🏷️ Master Kategori Gabungan (Aggregated dari 3 tabel di atas)
 api_router.include_router(
     category.router,
@@ -68,18 +77,6 @@ api_router.include_router(
     category.router,
     prefix="/categories",
     tags=["Master Kategori KST (Aggregated)"]
-)
-
-# 🇮🇩 Wilayah Indonesia (38 Provinsi & 514 Kota/Kabupaten)
-api_router.include_router(
-    wilayah.router,
-    prefix="/kst/wilayah",
-    tags=["Wilayah Indonesia"]
-)
-api_router.include_router(
-    wilayah.router,
-    prefix="/wilayah",
-    tags=["Wilayah Indonesia"]
 )
 
 # 🔐 Authentication (Login, Refresh Token, Profile)
@@ -94,4 +91,11 @@ api_router.include_router(
     admin.router,
     prefix="/admin",
     tags=["Admin CMS"]
+)
+
+# 🏢 Jenis Instansi (kst_instansi)
+api_router.include_router(
+    instansi.router,
+    prefix="/kst/instansi",
+    tags=["Jenis Instansi (kst_instansi)"]
 )

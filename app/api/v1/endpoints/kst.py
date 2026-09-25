@@ -8,10 +8,9 @@ from geoalchemy2 import functions as geofunc
 
 from app.db.session import get_db
 from app.models.kst import KSTLocation
-from app.models.partner import RegionalPartner
+from app.models.instansi import KSTInstansi
 from app.models.user import User
 from app.schemas.kst import KSTMapItem, KSTDetail, KSTCreate, KSTUpdate
-from app.schemas.partner import PartnerResponse, PartnerCreate, PartnerUpdate
 from app.api.v1.deps import get_current_admin
 
 router = APIRouter()
@@ -139,38 +138,6 @@ def get_nearby_kst(
 
 
 # =========================================================================
-# 🏛️ 2. DIREKTORI MITRA DAERAH (BAPPEDA / BAPPERIDA / BRIDA)
-# =========================================================================
-
-@router.get("/partners", response_model=List[PartnerResponse])
-def get_regional_partners(
-    jenis: Optional[str] = Query(None, description="Filter jenis: BRIDA, BAPPERIDA, BAPPEDA"),
-    wilayah: Optional[str] = Query(None, description="Filter wilayah"),
-    q: Optional[str] = Query(None, description="Cari nama organisasi / alamat"),
-    limit: int = Query(100, description="Limit data"),
-    db: Session = Depends(get_db)
-):
-    """
-    Daftar Mitra Riset Daerah (BAPPEDA / BAPPERIDA / BRIDA) dari data spreadsheet.
-    """
-    query = db.query(RegionalPartner)
-    if jenis:
-        query = query.filter(RegionalPartner.jenis == jenis.upper())
-    if wilayah:
-        query = query.filter(RegionalPartner.wilayah.ilike(f"%{wilayah}%"))
-    if q:
-        search = f"%{q}%"
-        query = query.filter(
-            or_(
-                RegionalPartner.nama_organisasi.ilike(search),
-                RegionalPartner.alamat.ilike(search)
-            )
-        )
-
-    return query.limit(limit).all()
-
-
-# =========================================================================
 # 🛠️ 3. ADMIN CRUD KST (CMS)
 # =========================================================================
 
@@ -188,11 +155,27 @@ def create_kst_location(
         raise HTTPException(status_code=400, detail=f"Slug '{payload.slug}' sudah digunakan.")
 
     data = payload.dict()
+    instansi_nama = data.pop("instansi_nama", None)
+
     lat = data.get("latitude")
     lon = data.get("longitude")
     data["geom"] = _set_point_geom(lat, lon)
 
     new_kst = KSTLocation(**data)
+    
+    instansi_id = None
+    if instansi_nama and instansi_nama.strip():
+        nama_instansi = instansi_nama.strip()
+        slug_instansi = nama_instansi.lower().replace(" ", "-")
+        inst_obj = db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(nama_instansi)).first()
+        if not inst_obj:
+            inst_obj = KSTInstansi(nama=nama_instansi, slug=slug_instansi)
+            db.add(inst_obj)
+            db.commit()
+            db.refresh(inst_obj)
+        instansi_id = inst_obj.id
+    new_kst.instansi_id = instansi_id
+
     db.add(new_kst)
     db.commit()
     db.refresh(new_kst)
@@ -225,8 +208,20 @@ def update_kst_location(
         lon = update_data.get("longitude", kst.longitude)
         update_data["geom"] = _set_point_geom(lat, lon)
 
+    instansi_nama = update_data.pop("instansi_nama", None)
     for field, val in update_data.items():
         setattr(kst, field, val)
+
+    if instansi_nama and instansi_nama.strip():
+        nama_instansi = instansi_nama.strip()
+        slug_instansi = nama_instansi.lower().replace(" ", "-")
+        inst_obj = db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(nama_instansi)).first()
+        if not inst_obj:
+            inst_obj = KSTInstansi(nama=nama_instansi, slug=slug_instansi)
+            db.add(inst_obj)
+            db.commit()
+            db.refresh(inst_obj)
+        kst.instansi_id = inst_obj.id
 
     db.commit()
     db.refresh(kst)
@@ -250,74 +245,4 @@ def delete_kst_location(
     db.commit()
     return {"message": "Data KST berhasil dihapus", "id": str(kst_id)}
 
-
-# =========================================================================
-# 🛠️ 4. ADMIN CRUD MITRA DAERAH (CMS)
-# =========================================================================
-
-@router.post("/partners", response_model=PartnerResponse)
-def create_regional_partner(
-    payload: PartnerCreate,
-    admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Tambah instansi mitra daerah baru via CMS.
-    """
-    data = payload.dict()
-    lat = data.get("latitude")
-    lon = data.get("longitude")
-    data["geom"] = _set_point_geom(lat, lon)
-
-    partner = RegionalPartner(**data)
-    db.add(partner)
-    db.commit()
-    db.refresh(partner)
-    return partner
-
-
-@router.put("/partners/{partner_id}", response_model=PartnerResponse)
-def update_regional_partner(
-    partner_id: uuid.UUID,
-    payload: PartnerUpdate,
-    admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Perbarui data mitra daerah via CMS.
-    """
-    partner = db.query(RegionalPartner).filter(RegionalPartner.id == partner_id).first()
-    if not partner:
-        raise HTTPException(status_code=404, detail="Data mitra daerah tidak ditemukan")
-
-    update_data = payload.dict(exclude_unset=True)
-    if "latitude" in update_data or "longitude" in update_data:
-        lat = update_data.get("latitude", partner.latitude)
-        lon = update_data.get("longitude", partner.longitude)
-        update_data["geom"] = _set_point_geom(lat, lon)
-
-    for field, val in update_data.items():
-        setattr(partner, field, val)
-
-    db.commit()
-    db.refresh(partner)
-    return partner
-
-
-@router.delete("/partners/{partner_id}")
-def delete_regional_partner(
-    partner_id: uuid.UUID,
-    admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Hapus data mitra daerah via CMS.
-    """
-    partner = db.query(RegionalPartner).filter(RegionalPartner.id == partner_id).first()
-    if not partner:
-        raise HTTPException(status_code=404, detail="Data mitra daerah tidak ditemukan")
-
-    db.delete(partner)
-    db.commit()
-    return {"message": "Data mitra daerah berhasil dihapus", "id": str(partner_id)}
 

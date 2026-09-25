@@ -8,11 +8,16 @@ from app.core.helpers import build_full_url, build_full_url_list
 class KSTBase(BaseModel):
     nama: str = Field(..., example="KST Jawa Barat")
     slug: str = Field(..., example="kst-jawa-barat")
-    wilayah: str = Field(..., example="Jawa")
+    wilayah: Optional[str] = Field(None, example="Jawa")
     kota_provinsi: str = Field(..., example="Bandung, Jawa Barat")
-    pengelola: str = Field(default="BRIN", example="BRIN")
-    status: str = Field(default="Aktif", example="Aktif")
-    tahun_operasi: int = Field(default=2021, example=2021)
+    pengelola: Optional[str] = None
+    status: Optional[str] = None
+    instansi_nama: Optional[str] = Field(None, example="Kawasan Sains (KST)")
+    telepon: Optional[str] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    alamat: Optional[str] = None
+    tahun_operasi: Optional[int] = None
     thumbnail_url: Optional[str] = None
     latitude: Optional[float] = Field(None, example=-6.917464)
     longitude: Optional[float] = Field(None, example=107.619122)
@@ -20,8 +25,6 @@ class KSTBase(BaseModel):
     # 6 Tab Data KST
     deskripsi_profil: Optional[str] = None
     peran_kawasan: Optional[str] = None
-    fokus_utama: List[str] = Field(default_factory=list, example=["Pangan", "Energi", "Laut", "Teknologi Digital"])
-    terhubung_dengan: Optional[str] = None
     fasilitas: List[Any] = Field(default_factory=list)
     riset: List[Any] = Field(default_factory=list)
     dampak: List[Any] = Field(default_factory=list)
@@ -42,14 +45,17 @@ class KSTUpdate(BaseModel):
     kota_provinsi: Optional[str] = None
     pengelola: Optional[str] = None
     status: Optional[str] = None
+    instansi_nama: Optional[str] = Field(None, example="Kawasan Sains (KST)")
+    telepon: Optional[str] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    alamat: Optional[str] = None
     tahun_operasi: Optional[int] = None
     thumbnail_url: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     deskripsi_profil: Optional[str] = None
     peran_kawasan: Optional[str] = None
-    fokus_utama: Optional[List[str]] = None
-    terhubung_dengan: Optional[str] = None
     fasilitas: Optional[List[Any]] = None
     riset: Optional[List[Any]] = None
     dampak: Optional[List[Any]] = None
@@ -63,15 +69,21 @@ class KSTMapItem(BaseModel):
     id: uuid.UUID
     nama: str
     slug: str
-    wilayah: str
+    wilayah: Optional[str] = None
     kota_provinsi: str
-    pengelola: str
-    status: str
-    tahun_operasi: int
+    pengelola: Optional[str] = None
+    status: Optional[str] = None
+    instansi_nama: Optional[str] = Field(None, example="Kawasan Sains (KST)")
+    instansi_nama: Optional[str] = None
+    telepon: Optional[str] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    alamat: Optional[str] = None
+    tahun_operasi: Optional[int] = None
     thumbnail_url: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    fokus_utama: List[str] = []
+    tema_riset: List[str] = []
     is_active: bool
 
     @field_validator("thumbnail_url", mode="after")

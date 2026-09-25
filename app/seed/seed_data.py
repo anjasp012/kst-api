@@ -11,10 +11,8 @@ from app.core.security import get_password_hash
 from app.models import (
     User,
     KSTLocation,
-    RegionalPartner
 )
-from app.seed.seed_wilayah import seed_wilayah_data
-from app.seed.seed_categories import seed_categories_data
+from app.seed.seed_separate_tables import seed_separate_tables
 
 
 def seed_database():
@@ -24,7 +22,6 @@ def seed_database():
         conn.commit()
 
     print("[+] Initializing Database Tables...")
-    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     print("[+] Tables created successfully!")
 
@@ -41,8 +38,7 @@ def seed_database():
             is_active=1
         )
         db.add(admin)
-        db.commit()
-        print("[+] Admin created: username='admin' (Password: admin123)")
+        
 
         # 2. Seeding KST Locations (Wonderful BRIN Interactive Map & Modal)
         print("[+] Seeding Kawasan Sains dan Teknologi (KST) Locations...")
@@ -501,10 +497,15 @@ def seed_database():
             lat = p["latitude"]
             lon = p["longitude"]
             geom = WKTElement(f"POINT({lon} {lat})", srid=4326) if lat and lon else None
-            part_obj = RegionalPartner(
-                nama_organisasi=p["nama_organisasi"],
-                jenis=p["jenis"],
-                wilayah=p["wilayah"],
+            
+            slug = p["nama_organisasi"].lower().replace(' ', '-') + '-' + str(lat)[:4].replace('.','')
+            
+            part_obj = KSTLocation(
+                nama=p["nama_organisasi"],
+                slug=slug,
+                kota_provinsi=p["wilayah"],
+                pengelola="Mitra Daerah",
+                instansi_id=db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(p["jenis"])).first().id if db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(p["jenis"])).first() else None,
                 alamat=p["alamat"],
                 telepon=p["telepon"],
                 website=p["website"],
@@ -515,13 +516,10 @@ def seed_database():
             )
             db.add(part_obj)
         db.commit()
-        print(f"[+] {len(partners_data)} Regional Partners seeded successfully!")
+        print(f"[+] {len(partners_data)} Regional Partners seeded successfully as KSTLocations!")
 
-        # 4. Wilayah Indonesia (38 Provinsi & 514 Kab/Kota)
-        seed_wilayah_data()
-
-        # 5. Master Kategori KST (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi)
-        seed_categories_data()
+        # 4. Master Kategori KST (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi, Dampak)
+        seed_separate_tables()
 
         print("\n[+] ALL KST & POSTGIS SEEDING COMPLETED SUCCESSFULLY!")
 
