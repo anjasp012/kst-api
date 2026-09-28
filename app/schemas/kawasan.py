@@ -1,4 +1,7 @@
-from app.schemas.kawasan import (
+from app.schemas.jenis_kawasan import (
+    KSTJenisKawasanItem,
+    KSTJenisKawasanCreate,
+    KSTJenisKawasanUpdate,
     KSTKawasanItem,
     KSTKawasanCreate,
     KSTKawasanUpdate,
@@ -8,6 +11,9 @@ from app.schemas.kawasan import (
 )
 
 __all__ = [
+    "KSTJenisKawasanItem",
+    "KSTJenisKawasanCreate",
+    "KSTJenisKawasanUpdate",
     "KSTKawasanItem",
     "KSTKawasanCreate",
     "KSTKawasanUpdate",

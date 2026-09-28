@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class DampakItem(BaseModel):
+class TemaRisetItem(BaseModel):
     id: uuid.UUID
     nama: str
     slug: str
@@ -17,16 +17,20 @@ class DampakItem(BaseModel):
         from_attributes = True
 
 
-class DampakCreate(BaseModel):
+class TemaRisetCreate(BaseModel):
     nama: str
     slug: Optional[str] = None
     deskripsi: Optional[str] = None
     is_active: Optional[bool] = True
 
 
-class DampakUpdate(BaseModel):
+class TemaRisetUpdate(BaseModel):
     nama: Optional[str] = None
     slug: Optional[str] = None
     deskripsi: Optional[str] = None
     is_active: Optional[bool] = None
 
+
+ThemeRisetItem = TemaRisetItem
+ThemeRisetCreate = TemaRisetCreate
+ThemeRisetUpdate = TemaRisetUpdate

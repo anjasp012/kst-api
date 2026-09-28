@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
@@ -6,8 +7,10 @@ class WilayahProvinceItem(BaseModel):
     id: str
     kode: str
     nama: str
-    name: Optional[str] = None
+    total_kabupaten_kota: Optional[int] = 0
     total_regencies: Optional[int] = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -30,6 +33,8 @@ class WilayahRegencyItem(BaseModel):
     nama: str
     name: Optional[str] = None
     tipe: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -46,4 +51,17 @@ class WilayahRegencyUpdate(BaseModel):
     nama: Optional[str] = None
     province_kode: Optional[str] = None
     tipe: Optional[str] = None
+
+
+# Indonesian aliases
+WilayahProvinsiItem = WilayahProvinceItem
+WilayahProvinsiCreate = WilayahProvinceCreate
+WilayahProvinsiUpdate = WilayahProvinceUpdate
+WilayahKabupatenKotaItem = WilayahRegencyItem
+WilayahKabupatenKotaCreate = WilayahRegencyCreate
+WilayahKabupatenKotaUpdate = WilayahRegencyUpdate
+WilayahKabupatenItem = WilayahRegencyItem
+WilayahKabupatenCreate = WilayahRegencyCreate
+WilayahKabupatenUpdate = WilayahRegencyUpdate
+
 

@@ -22,3 +22,7 @@ class UserResponse(BaseModel):
     responseCode: str = "2000000"
     responseMessage: str = "Success"
     data: UserData
+
+
+PenggunaData = UserData
+PenggunaResponse = UserResponse

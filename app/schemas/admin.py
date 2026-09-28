@@ -6,6 +6,7 @@ class UploadResponse(BaseModel):
     file_url: str
     relative_url: str
     original_filename: str
+    tipe: str = "foto"
 
 
 class KSTAnalyticsResponse(BaseModel):

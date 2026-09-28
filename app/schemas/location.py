@@ -1,8 +1,9 @@
-"""
-Backward compatibility re-export module for schemas.
-Prefer using app.schemas.location instead.
-"""
-from app.schemas.location import (
+from app.schemas.lokasi import (
+    LokasiBase,
+    LokasiCreate,
+    LokasiUpdate,
+    LokasiMapItem,
+    LokasiDetail,
     LocationBase,
     LocationCreate,
     LocationUpdate,
@@ -16,6 +17,11 @@ from app.schemas.location import (
 )
 
 __all__ = [
+    "LokasiBase",
+    "LokasiCreate",
+    "LokasiUpdate",
+    "LokasiMapItem",
+    "LokasiDetail",
     "LocationBase",
     "LocationCreate",
     "LocationUpdate",

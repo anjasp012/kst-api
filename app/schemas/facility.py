@@ -1,32 +1,17 @@
-import uuid
-from typing import Optional
-from pydantic import BaseModel
+from app.schemas.fasilitas import (
+    FasilitasItem,
+    FasilitasCreate,
+    FasilitasUpdate,
+    FacilityItem,
+    FacilityCreate,
+    FacilityUpdate,
+)
 
-
-class FacilityItem(BaseModel):
-    id: uuid.UUID
-    nama: str
-    slug: str
-    deskripsi: Optional[str] = None
-    urutan: int
-    is_active: bool
-
-    class Config:
-        from_attributes = True
-
-
-class FacilityCreate(BaseModel):
-    nama: str
-    slug: Optional[str] = None
-    deskripsi: Optional[str] = None
-    urutan: Optional[int] = 0
-    is_active: Optional[bool] = True
-
-
-class FacilityUpdate(BaseModel):
-    nama: Optional[str] = None
-    slug: Optional[str] = None
-    deskripsi: Optional[str] = None
-    urutan: Optional[int] = None
-    is_active: Optional[bool] = None
-
+__all__ = [
+    "FasilitasItem",
+    "FasilitasCreate",
+    "FasilitasUpdate",
+    "FacilityItem",
+    "FacilityCreate",
+    "FacilityUpdate",
+]

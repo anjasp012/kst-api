@@ -1,13 +1,13 @@
 import re
 import uuid
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.dampak import KSTDampak
+from app.models.fasilitas import KSTFasilitas
 from app.models.user import User
-from app.schemas.dampak import DampakItem, DampakCreate, DampakUpdate
+from app.schemas.fasilitas import FasilitasItem, FasilitasCreate, FasilitasUpdate
 from app.api.v1.deps import get_current_admin
 
 router = APIRouter()
@@ -19,34 +19,34 @@ def slugify(text: str) -> str:
     return text.strip('-')
 
 
-@router.get("", response_model=List[DampakItem])
-def get_dampak_list(
+@router.get("", response_model=List[FasilitasItem])
+def get_facilities(
     include_inactive: bool = Query(False, description="Tampilkan item nonaktif juga (untuk CMS)"),
     db: Session = Depends(get_db)
 ):
-    query = db.query(KSTDampak)
+    query = db.query(KSTFasilitas)
     if not include_inactive:
-        query = query.filter(KSTDampak.is_active == True)
-    return query.order_by(KSTDampak.nama.asc()).all()
+        query = query.filter(KSTFasilitas.is_active == True)
+    return query.order_by(KSTFasilitas.nama.asc()).all()
 
 
-@router.post("", response_model=DampakItem, status_code=status.HTTP_201_CREATED)
-def create_dampak(
-    payload: DampakCreate,
+@router.post("", response_model=FasilitasItem, status_code=status.HTTP_201_CREATED)
+def create_facility(
+    payload: FasilitasCreate,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     slug = payload.slug or slugify(payload.nama)
-    existing = db.query(KSTDampak).filter(
-        (KSTDampak.slug == slug) | (KSTDampak.nama.ilike(payload.nama.strip()))
+    existing = db.query(KSTFasilitas).filter(
+        (KSTFasilitas.slug == slug) | (KSTFasilitas.nama.ilike(payload.nama.strip()))
     ).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Dampak '{payload.nama}' sudah terdaftar"
+            detail=f"Fasilitas '{payload.nama}' sudah terdaftar"
         )
 
-    item = KSTDampak(
+    item = KSTFasilitas(
         id=uuid.uuid4(),
         nama=payload.nama.strip(),
         slug=slug,
@@ -59,16 +59,16 @@ def create_dampak(
     return item
 
 
-@router.put("/{dampak_id}", response_model=DampakItem)
-def update_dampak(
-    dampak_id: uuid.UUID,
-    payload: DampakUpdate,
+@router.put("/{facility_id}", response_model=FasilitasItem)
+def update_facility(
+    facility_id: uuid.UUID,
+    payload: FasilitasUpdate,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    item = db.query(KSTDampak).filter(KSTDampak.id == dampak_id).first()
+    item = db.query(KSTFasilitas).filter(KSTFasilitas.id == facility_id).first()
     if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dampak tidak ditemukan")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fasilitas tidak ditemukan")
 
     if payload.nama is not None:
         item.nama = payload.nama.strip()
@@ -86,18 +86,17 @@ def update_dampak(
     return item
 
 
-@router.delete("/{dampak_id}", status_code=status.HTTP_200_OK)
-def delete_dampak(
-    dampak_id: uuid.UUID,
+@router.delete("/{facility_id}", status_code=status.HTTP_200_OK)
+def delete_facility(
+    facility_id: uuid.UUID,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    item = db.query(KSTDampak).filter(KSTDampak.id == dampak_id).first()
+    item = db.query(KSTFasilitas).filter(KSTFasilitas.id == facility_id).first()
     if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dampak tidak ditemukan")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fasilitas tidak ditemukan")
 
     nama = item.nama
     db.delete(item)
     db.commit()
-    return {"status": "success", "message": f"Dampak '{nama}' berhasil dihapus"}
-
+    return {"status": "success", "message": f"Fasilitas '{nama}' berhasil dihapus"}

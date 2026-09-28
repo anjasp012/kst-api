@@ -11,6 +11,8 @@ from app.core.security import get_password_hash
 from app.models import (
     User,
     KSTLocation,
+    KSTJenisKawasan,
+    KSTKawasan,
     KSTInstansi,
 )
 from app.seed.seed_separate_tables import seed_separate_tables
@@ -51,7 +53,7 @@ def seed_database():
             print("[+] Admin user already exists.")
         
 
-        # 2. Seeding KST Locations (Wonderful BRIN Interactive Map & Modal)
+        # 2. Seeding KST Locations (Jelajahi Kawasan Terpadu BRIN Interactive Map & Modal)
         print("[+] Seeding Kawasan Sains dan Teknologi (KST) Locations...")
         kst_data = [
             {
@@ -247,7 +249,7 @@ def seed_database():
             }
         ]
 
-        kst_inst = db.query(KSTInstansi).filter(KSTInstansi.slug == "kawasan-sains-kst").first()
+        kst_inst = db.query(KSTJenisKawasan).filter(KSTJenisKawasan.slug == "kawasan-sains-kst").first()
         kst_inst_id = kst_inst.id if kst_inst else None
 
         for k in kst_data:
@@ -264,6 +266,8 @@ def seed_database():
                 kota_provinsi=k["kota_provinsi"],
                 pengelola=k["pengelola"],
                 status=k["status"],
+                jenis_kawasan_id=kst_inst_id,
+                kawasan_id=kst_inst_id,
                 instansi_id=kst_inst_id,
                 tahun_operasi=k["tahun_operasi"],
                 thumbnail_url=k["thumbnail_url"],
@@ -277,8 +281,7 @@ def seed_database():
                 dampak=k["dampak"],
                 potensi_kolaborasi=k["potensi_kolaborasi"],
                 daftar_kolaborasi=k["daftar_kolaborasi"],
-                galeri=k["galeri"],
-                is_active=True
+                galeri=k["galeri"]
             )
             db.add(kst_obj)
         db.commit()
@@ -520,12 +523,14 @@ def seed_database():
             if existing_part:
                 continue
 
-            inst_match = db.query(KSTInstansi).filter(KSTInstansi.nama.ilike(p["jenis"])).first()
+            inst_match = db.query(KSTJenisKawasan).filter(KSTJenisKawasan.nama.ilike(p["jenis"])).first()
             part_obj = KSTLocation(
                 nama=p["nama_organisasi"],
                 slug=slug,
                 kota_provinsi=p["wilayah"],
                 pengelola="Mitra Daerah",
+                jenis_kawasan_id=inst_match.id if inst_match else None,
+                kawasan_id=inst_match.id if inst_match else None,
                 instansi_id=inst_match.id if inst_match else None,
                 alamat=p["alamat"],
                 telepon=p["telepon"],
@@ -533,8 +538,7 @@ def seed_database():
                 email=p["email"],
                 latitude=lat,
                 longitude=lon,
-                geom=geom,
-                is_active=True
+                geom=geom
             )
             db.add(part_obj)
         db.commit()

@@ -5,11 +5,11 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.db.session import Base
 
 
-class KSTDampak(Base):
+class KSTFasilitas(Base):
     """
-    Tabel terpisah untuk Pilar Dampak KST (Penguatan Iptek, Daya Saing Industri, Kesejahteraan Masyarakat, dll).
+    Tabel terpisah untuk Tipe / Jenis Fasilitas KST (Laboratorium, Pilot Plant, Observatorium, dll).
     """
-    __tablename__ = "kst_dampak"
+    __tablename__ = "kst_fasilitas"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nama = Column(String(100), nullable=False)
@@ -19,3 +19,5 @@ class KSTDampak(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+KSTFacility = KSTFasilitas
