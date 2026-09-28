@@ -27,7 +27,25 @@ def seed_database():
 
     print("[+] Initializing Database Tables...")
     Base.metadata.create_all(bind=engine)
-    print("[+] Tables created successfully!")
+    
+    # Auto-add missing columns to existing tables
+    with engine.begin() as conn:
+        for q in [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE;",
+            "ALTER TABLE kst_lokasi ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE kst_lokasi ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE kst_lokasi ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE kst_galeri ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE kst_galeri ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+        ]:
+            try:
+                conn.execute(text(q))
+            except Exception:
+                pass
+
+    print("[+] Tables created and synchronized successfully!")
 
     # 1. Seed Master Kategori KST & Instansi terlebih dahulu
     seed_separate_tables()
