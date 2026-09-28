@@ -298,8 +298,7 @@ def seed_database():
                 riset=k["riset"],
                 dampak=k["dampak"],
                 potensi_kolaborasi=k["potensi_kolaborasi"],
-                daftar_kolaborasi=k["daftar_kolaborasi"],
-                galeri=k["galeri"]
+                daftar_kolaborasi=k["daftar_kolaborasi"]
             )
             db.add(kst_obj)
         db.commit()

@@ -62,13 +62,25 @@ class KSTLokasi(Base):
             return self.instansi.nama
         return None
 
+    @jenis_kawasan_nama.setter
+    def jenis_kawasan_nama(self, val):
+        pass
+
     @property
     def kawasan_nama(self):
         return self.jenis_kawasan_nama
 
+    @kawasan_nama.setter
+    def kawasan_nama(self, val):
+        pass
+
     @property
     def instansi_nama(self):
         return self.jenis_kawasan_nama
+
+    @instansi_nama.setter
+    def instansi_nama(self, val):
+        pass
 
     @property
     def tema_riset(self):
@@ -80,6 +92,10 @@ class KSTLokasi(Base):
             if val and val not in themes:
                 themes.append(val)
         return themes
+
+    @tema_riset.setter
+    def tema_riset(self, val):
+        pass
 
     @property
     def galeri(self):
@@ -94,6 +110,10 @@ class KSTLokasi(Base):
             }
             for g in self.galeri_items
         ]
+
+    @galeri.setter
+    def galeri(self, val):
+        pass
 
 
 
