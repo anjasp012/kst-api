@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.jenis_kawasan import KSTJenisKawasan
-from app.models.tema_riset import KSTTemaRiset
+from app.models.tema_riset import KSTFokusRiset, KstTemaRiset
 from app.api.v1.endpoints.wilayah import _get_active_location_wilayah_map
 
 router = APIRouter()
@@ -32,12 +32,14 @@ def get_master_data(
     jenis_kawasan_items = (
         db.query(KSTJenisKawasan)
         .filter(KSTJenisKawasan.is_active == True)
-        .order_by(KSTJenisKawasan.nama.asc())
+        .order_by(KSTJenisKawasan.parent_id.nullsfirst(), KSTJenisKawasan.nama.asc())
         .all()
     )
     jk_list = [
         {
             "id": str(jk.id),
+            "parent_id": str(jk.parent_id) if jk.parent_id else None,
+            "parent_nama": jk.parent.nama if jk.parent else None,
             "nama": jk.nama,
             "slug": jk.slug,
             "deskripsi": jk.deskripsi
@@ -45,21 +47,32 @@ def get_master_data(
         for jk in jenis_kawasan_items
     ]
 
-    # 3. Fokus Riset
-    tema_items = (
-        db.query(KSTTemaRiset)
-        .filter(KSTTemaRiset.is_active == True)
-        .order_by(KSTTemaRiset.nama.asc())
+    # 3. Fokus Riset (dari kst_fokus_riset dengan fallback ke kst_tema_riset)
+    fokus_items = (
+        db.query(KSTFokusRiset)
+        .filter(
+            KSTFokusRiset.nama.isnot(None),
+            KSTFokusRiset.nama != "",
+            KSTFokusRiset.nama != "-",
+            KSTFokusRiset.nama != "n/a"
+        )
+        .order_by(KSTFokusRiset.nama.asc())
         .all()
     )
+    if not fokus_items:
+        fokus_items = (
+            db.query(KstTemaRiset)
+            .filter(KstTemaRiset.is_active == True)
+            .order_by(KstTemaRiset.nama.asc())
+            .all()
+        )
     fokus_list = [
         {
             "id": str(t.id),
             "nama": t.nama,
-            "slug": t.slug,
-            "deskripsi": t.deskripsi
+            "slug": t.slug
         }
-        for t in tema_items
+        for t in fokus_items
     ]
 
     return {
@@ -70,3 +83,4 @@ def get_master_data(
         "jenis_kawasan": jk_list,
         "fokus_riset": fokus_list
     }
+

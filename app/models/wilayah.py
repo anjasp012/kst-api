@@ -41,6 +41,10 @@ class WilayahKabupatenKota(Base):
     def province(self):
         return self.provinsi
 
+    @property
+    def provinsi_kode(self):
+        return self.province_kode
+
 
 # Backward compatibility aliases
 WilayahProvince = WilayahProvinsi

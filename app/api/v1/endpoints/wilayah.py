@@ -161,6 +161,7 @@ def get_provinces(
             id=p.kode,
             kode=p.kode,
             nama=p.nama,
+            name=p.nama,
             total_kabupaten_kota=total or 0,
             total_regencies=total or 0
         )
@@ -234,8 +235,33 @@ def delete_province(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provinsi tidak ditemukan")
 
     nama = prov.nama
-    db.delete(prov)
-    db.commit()
+
+    # Cek apakah masih memiliki kabupaten/kota di bawahnya
+    kab_count = db.query(WilayahRegency).filter(WilayahRegency.province_kode == kode).count()
+    if kab_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tidak dapat menghapus provinsi '{nama}' karena masih memiliki {kab_count} data kabupaten/kota. Harap hapus kabupaten/kota di dalamnya terlebih dahulu."
+        )
+
+    # Cek apakah masih digunakan oleh data lokasi
+    from app.models.lokasi import KSTLokasi
+    lokasi_count = db.query(KSTLokasi).filter(KSTLokasi.provinsi_kode == kode).count()
+    if lokasi_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tidak dapat menghapus provinsi '{nama}' karena masih digunakan oleh {lokasi_count} data lokasi kawasan."
+        )
+
+    try:
+        db.delete(prov)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Gagal menghapus provinsi '{nama}' karena masih terhubung dengan data lain di sistem."
+        )
     return {"status": "success", "message": f"Provinsi '{nama}' berhasil dihapus"}
 
 
@@ -369,6 +395,23 @@ def delete_regency(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kabupaten/Kota tidak ditemukan")
 
     nama = item.nama
-    db.delete(item)
-    db.commit()
+
+    # Cek apakah masih digunakan oleh data lokasi
+    from app.models.lokasi import KSTLokasi
+    lokasi_count = db.query(KSTLokasi).filter(KSTLokasi.kabupaten_kota_kode == kode).count()
+    if lokasi_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tidak dapat menghapus kabupaten/kota '{nama}' karena masih digunakan oleh {lokasi_count} data lokasi kawasan. Harap ubah lokasi terkait terlebih dahulu."
+        )
+
+    try:
+        db.delete(item)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Gagal menghapus kabupaten/kota '{nama}' karena masih terhubung dengan data lain di sistem."
+        )
     return {"status": "success", "message": f"Kabupaten/Kota '{nama}' berhasil dihapus"}

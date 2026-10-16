@@ -4,6 +4,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
 # =========================
 # Virtual Environment
@@ -66,16 +67,17 @@ logs/
 Thumbs.db
 
 # =========================
-# Jupyter
-# =========================
-.ipynb_checkpoints/
-
-# =========================
 # Local database
 # =========================
 *.sqlite
 *.sqlite3
 *.db
+
+# =========================
+# User Uploads
+# =========================
+uploads/*
+!uploads/.gitkeep
 
 # =========================
 # Temporary files
@@ -84,4 +86,3 @@ Thumbs.db
 *.temp
 tmp/
 temp/
-

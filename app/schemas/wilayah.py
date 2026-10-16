@@ -7,6 +7,7 @@ class WilayahProvinceItem(BaseModel):
     id: str
     kode: str
     nama: str
+    name: Optional[str] = None
     total_kabupaten_kota: Optional[int] = 0
     total_regencies: Optional[int] = 0
     created_at: Optional[datetime] = None

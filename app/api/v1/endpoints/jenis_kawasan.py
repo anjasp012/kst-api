@@ -32,7 +32,13 @@ def get_jenis_kawasan_list(
     query = db.query(KSTJenisKawasan)
     if not include_inactive:
         query = query.filter(KSTJenisKawasan.is_active == True)
-    return query.order_by(KSTJenisKawasan.nama.asc()).all()
+    items = query.order_by(KSTJenisKawasan.parent_id.nullsfirst(), KSTJenisKawasan.nama.asc()).all()
+    results = []
+    for it in items:
+        res = KSTJenisKawasanItem.model_validate(it)
+        res.parent_nama = it.parent.nama if it.parent else None
+        results.append(res)
+    return results
 
 
 @router.post("", response_model=KSTJenisKawasanItem, status_code=status.HTTP_201_CREATED)
@@ -57,12 +63,15 @@ def create_jenis_kawasan(
         nama=nama,
         slug=slug,
         deskripsi=payload.deskripsi.strip() if payload.deskripsi else None,
+        parent_id=payload.parent_id,
         is_active=payload.is_active if payload.is_active is not None else True
     )
     db.add(item)
     db.commit()
     db.refresh(item)
-    return item
+    res = KSTJenisKawasanItem.model_validate(item)
+    res.parent_nama = item.parent.nama if item.parent else None
+    return res
 
 
 @router.put("/{id}", response_model=KSTJenisKawasanItem)
@@ -76,18 +85,27 @@ def update_jenis_kawasan(
     if not item:
         raise HTTPException(status_code=404, detail="Data jenis kawasan tidak ditemukan.")
 
-    if payload.nama is not None:
+    if "nama" in payload.model_fields_set and payload.nama is not None:
         item.nama = payload.nama.strip()
-    if payload.slug is not None:
+    if "slug" in payload.model_fields_set and payload.slug is not None:
         item.slug = payload.slug.strip().lower()
-    if payload.deskripsi is not None:
+    if "deskripsi" in payload.model_fields_set:
         item.deskripsi = payload.deskripsi.strip() if payload.deskripsi else None
-    if payload.is_active is not None:
+    if "is_active" in payload.model_fields_set and payload.is_active is not None:
         item.is_active = payload.is_active
+    if "parent_id" in payload.model_fields_set:
+        if payload.parent_id == id:
+            raise HTTPException(status_code=400, detail="Kategori tidak dapat menjadi parent untuk dirinya sendiri.")
+        item.parent_id = payload.parent_id
+
+    from datetime import datetime
+    item.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(item)
-    return item
+    res = KSTJenisKawasanItem.model_validate(item)
+    res.parent_nama = item.parent.nama if item.parent else None
+    return res
 
 
 @router.delete("/{id}")
@@ -100,6 +118,30 @@ def delete_jenis_kawasan(
     if not item:
         raise HTTPException(status_code=404, detail="Data jenis kawasan tidak ditemukan.")
 
-    db.delete(item)
-    db.commit()
-    return {"status": "success", "message": "Data jenis kawasan berhasil dihapus"}
+    # 1. Periksa apakah jenis kawasan masih digunakan oleh data lokasi kawasan
+    from app.models.lokasi import KSTLokasi
+    lokasi_count = db.query(KSTLokasi).filter(KSTLokasi.jenis_kawasan_id == id).count()
+    if lokasi_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tidak dapat menghapus jenis kawasan '{item.nama}' karena masih digunakan oleh {lokasi_count} data lokasi. Harap ubah jenis kawasan pada data lokasi terkait terlebih dahulu."
+        )
+
+    # 2. Periksa apakah kategori ini memiliki sub-jenis di bawahnya
+    sub_count = db.query(KSTJenisKawasan).filter(KSTJenisKawasan.parent_id == id).count()
+    if sub_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tidak dapat menghapus kategori '{item.nama}' karena masih memiliki {sub_count} sub-jenis di dalamnya. Harap hapus sub-jenis terlebih dahulu."
+        )
+
+    try:
+        db.delete(item)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gagal menghapus jenis kawasan '{item.nama}' karena masih terhubung dengan data lain di sistem."
+        )
+    return {"status": "success", "message": f"Data jenis kawasan '{item.nama}' berhasil dihapus"}

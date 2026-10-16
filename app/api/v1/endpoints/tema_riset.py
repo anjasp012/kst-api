@@ -24,10 +24,10 @@ def get_themes(
     include_inactive: bool = Query(False, description="Tampilkan item nonaktif juga (untuk CMS)"),
     db: Session = Depends(get_db)
 ):
-    query = db.query(KSTTemaRiset)
+    q = db.query(KSTTemaRiset)
     if not include_inactive:
-        query = query.filter(KSTTemaRiset.is_active == True)
-    return query.order_by(KSTTemaRiset.nama.asc()).all()
+        q = q.filter(KSTTemaRiset.is_active == True)
+    return q.order_by(KSTTemaRiset.created_at.asc()).all()
 
 
 @router.post("", response_model=TemaRisetItem, status_code=status.HTTP_201_CREATED)
@@ -41,16 +41,12 @@ def create_theme(
         (KSTTemaRiset.slug == slug) | (KSTTemaRiset.nama.ilike(payload.nama.strip()))
     ).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tema riset '{payload.nama}' sudah terdaftar"
-        )
+        return existing
 
     item = KSTTemaRiset(
         id=uuid.uuid4(),
         nama=payload.nama.strip(),
         slug=slug,
-        deskripsi=payload.deskripsi.strip() if payload.deskripsi else None,
         is_active=payload.is_active if payload.is_active is not None else True
     )
     db.add(item)
@@ -76,8 +72,6 @@ def update_theme(
             item.slug = slugify(item.nama)
     if payload.slug is not None:
         item.slug = payload.slug
-    if payload.deskripsi is not None:
-        item.deskripsi = payload.deskripsi.strip() if payload.deskripsi else None
     if payload.is_active is not None:
         item.is_active = payload.is_active
 

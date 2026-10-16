@@ -8,7 +8,6 @@ class TemaRisetItem(BaseModel):
     id: uuid.UUID
     nama: str
     slug: str
-    deskripsi: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

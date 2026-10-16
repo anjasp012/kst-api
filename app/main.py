@@ -6,11 +6,12 @@ from app.core.config import settings, UPLOADS_DIR
 from app.db.session import engine, Base
 from app.api.v1.router import api_router
 
-# Auto create tables on startup
-Base.metadata.create_all(bind=engine)
-
+# 1. Jalankan auto-migration terlebih dahulu untuk mengaktifkan ekstensi (PostGIS, UUID) & struktur tabel dasar
 from app.db.auto_migrate import run_auto_migration
 run_auto_migration(engine)
+
+# 2. Sinkronkan seluruh model SQLAlchemy
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -35,14 +36,14 @@ app.add_middleware(
 
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    traceback.print_exc()
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
     response = JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal Server Error: {str(exc)}"},
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
     )
     origin = request.headers.get("origin")
     if origin:
@@ -52,6 +53,49 @@ async def global_exception_handler(request: Request, exc: Exception):
         response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
+@app.exception_handler(IntegrityError)
+async def integrity_exception_handler(request: Request, exc: IntegrityError):
+    import traceback
+    traceback.print_exc()
+    err_str = str(exc.orig) if hasattr(exc, "orig") and exc.orig else str(exc)
+    low_err = err_str.lower()
+    
+    if "foreign key" in low_err or "is still referenced" in low_err or "foreignkeyviolation" in low_err:
+        msg = "Data ini tidak dapat dihapus karena masih digunakan atau terhubung dengan data lain di sistem (misal data lokasi kawasan). Silakan ubah atau hapus data terkait terlebih dahulu."
+    elif "unique" in low_err or "duplicate key" in low_err or "uniqueviolation" in low_err:
+        msg = "Data dengan nama atau identitas tersebut sudah terdaftar di sistem. Silakan gunakan nama atau identitas yang berbeda."
+    else:
+        msg = "Operasi data tidak dapat diproses karena terdapat konflik relasi data di sistem."
+
+    response = JSONResponse(
+        status_code=400,
+        content={"detail": msg},
+    )
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": "Terjadi kendala pada sistem server saat memproses data. Silakan coba beberapa saat lagi atau hubungi administrator."},
+    )
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 app.include_router(api_router, prefix="/api/v1")
 
