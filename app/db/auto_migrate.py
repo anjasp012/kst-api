@@ -50,12 +50,17 @@ def run_auto_migration(engine):
                 'kst_dampak', 'kst_fasilitas', 'kst_kolaborasi', 'regional_partners'
             ]
             for obj_name in obsolete_objects:
-                t_type = conn.execute(text(
-                    "SELECT table_type FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = :t"
-                ), {"t": obj_name}).scalar()
-                if t_type == 'VIEW':
+                relkind = conn.execute(text("""
+                    SELECT c.relkind 
+                    FROM pg_class c 
+                    JOIN pg_namespace n ON n.oid = c.relnamespace 
+                    WHERE n.nspname = ANY(current_schemas(false)) AND c.relname = :t
+                """), {"t": obj_name}).scalar()
+                if relkind == 'v':
                     conn.execute(text(f'DROP VIEW IF EXISTS "{obj_name}" CASCADE;'))
-                elif t_type:
+                elif relkind == 'm':
+                    conn.execute(text(f'DROP MATERIALIZED VIEW IF EXISTS "{obj_name}" CASCADE;'))
+                elif relkind in ('r', 'p', 'f'):
                     conn.execute(text(f'DROP TABLE IF EXISTS "{obj_name}" CASCADE;'))
 
             # 3. Tabel users (Admin CMS)
