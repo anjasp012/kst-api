@@ -20,77 +20,43 @@ def run_auto_migration(engine):
             conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'))
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto;"))
 
-            # 2. Rename tabel lama jika masih ada dari versi prototype sebelumnya
-            conn.execute(text("""
-                DO $$
-                BEGIN
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'provinces' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_provinsi') THEN
-                            ALTER TABLE provinces RENAME TO kst_provinsi;
-                        ELSE
-                            DROP TABLE provinces CASCADE;
-                        END IF;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'regencies' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_kabupaten_kota') THEN
-                            ALTER TABLE regencies RENAME TO kst_kabupaten_kota;
-                        ELSE
-                            DROP TABLE regencies CASCADE;
-                        END IF;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_pengguna' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
-                            ALTER TABLE kst_pengguna RENAME TO users;
-                        ELSE
-                            DROP TABLE kst_pengguna CASCADE;
-                        END IF;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_locations' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_lokasi') THEN
-                            ALTER TABLE kst_locations RENAME TO kst_lokasi;
-                        ELSE
-                            DROP TABLE kst_locations CASCADE;
-                        END IF;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_themeriset' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_fokus_riset') THEN
-                            ALTER TABLE kst_themeriset RENAME TO kst_fokus_riset;
-                        ELSE
-                            DROP TABLE kst_themeriset CASCADE;
-                        END IF;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'field_label_location' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'label_data_lokasi') THEN
-                            ALTER TABLE field_label_location RENAME TO label_data_lokasi;
-                        ELSE
-                            DROP TABLE field_label_location CASCADE;
-                        END IF;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'field_value_location' AND table_type = 'BASE TABLE') THEN
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'nilai_data_lokasi') THEN
-                            ALTER TABLE field_value_location RENAME TO nilai_data_lokasi;
-                        ELSE
-                            DROP TABLE field_value_location CASCADE;
-                        END IF;
-                    END IF;
+            # 2. Rename & bersihkan tabel/view lama secara aman
+            rename_pairs = [
+                ('provinces', 'kst_provinsi'),
+                ('regencies', 'kst_kabupaten_kota'),
+                ('kst_pengguna', 'users'),
+                ('kst_locations', 'kst_lokasi'),
+                ('kst_themeriset', 'kst_fokus_riset'),
+                ('field_label_location', 'label_data_lokasi'),
+                ('field_value_location', 'nilai_data_lokasi'),
+            ]
+            for old_t, new_t in rename_pairs:
+                exists_old = conn.execute(text(
+                    "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = :t AND table_type = 'BASE TABLE'"
+                ), {"t": old_t}).scalar()
+                if exists_old:
+                    exists_new = conn.execute(text(
+                        "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = :t AND table_type = 'BASE TABLE'"
+                    ), {"t": new_t}).scalar()
+                    if not exists_new:
+                        conn.execute(text(f'ALTER TABLE "{old_t}" RENAME TO "{new_t}";'))
+                    else:
+                        conn.execute(text(f'DROP TABLE IF EXISTS "{old_t}" CASCADE;'))
 
-                    -- Bersihkan view lama
-                    DROP VIEW IF EXISTS provinces CASCADE;
-                    DROP VIEW IF EXISTS regencies CASCADE;
-                    DROP VIEW IF EXISTS kst_locations CASCADE;
-                    DROP VIEW IF EXISTS kst_themeriset CASCADE;
-                    DROP VIEW IF EXISTS kst_facilities CASCADE;
-                    DROP VIEW IF EXISTS kst_collaborations CASCADE;
-                    DROP VIEW IF EXISTS kst_tema_riset CASCADE;
-
-                    -- Bersihkan tabel yang sudah tidak digunakan
-                    DROP TABLE IF EXISTS kst_dampak CASCADE;
-                    DROP TABLE IF EXISTS kst_fasilitas CASCADE;
-                    DROP TABLE IF EXISTS kst_kolaborasi CASCADE;
-                    DROP TABLE IF EXISTS kst_tema_riset CASCADE;
-                    DROP TABLE IF EXISTS regional_partners CASCADE;
-                END $$;
-            """))
+            # Bersihkan tabel & view lama yang sudah tidak digunakan secara dinamis
+            obsolete_objects = [
+                'provinces', 'regencies', 'kst_locations', 'kst_themeriset',
+                'kst_facilities', 'kst_collaborations', 'kst_tema_riset',
+                'kst_dampak', 'kst_fasilitas', 'kst_kolaborasi', 'regional_partners'
+            ]
+            for obj_name in obsolete_objects:
+                t_type = conn.execute(text(
+                    "SELECT table_type FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = :t"
+                ), {"t": obj_name}).scalar()
+                if t_type == 'VIEW':
+                    conn.execute(text(f'DROP VIEW IF EXISTS "{obj_name}" CASCADE;'))
+                elif t_type:
+                    conn.execute(text(f'DROP TABLE IF EXISTS "{obj_name}" CASCADE;'))
 
             # 3. Tabel users (Admin CMS)
             conn.execute(text("""
