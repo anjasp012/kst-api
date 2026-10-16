@@ -25,19 +25,39 @@ def run_auto_migration(engine):
                 DO $$
                 BEGIN
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'provinces' AND table_type = 'BASE TABLE') THEN
-                        ALTER TABLE provinces RENAME TO kst_provinsi;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_provinsi') THEN
+                            ALTER TABLE provinces RENAME TO kst_provinsi;
+                        ELSE
+                            DROP TABLE provinces CASCADE;
+                        END IF;
                     END IF;
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'regencies' AND table_type = 'BASE TABLE') THEN
-                        ALTER TABLE regencies RENAME TO kst_kabupaten_kota;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_kabupaten_kota') THEN
+                            ALTER TABLE regencies RENAME TO kst_kabupaten_kota;
+                        ELSE
+                            DROP TABLE regencies CASCADE;
+                        END IF;
                     END IF;
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_pengguna' AND table_type = 'BASE TABLE') THEN
-                        ALTER TABLE kst_pengguna RENAME TO users;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+                            ALTER TABLE kst_pengguna RENAME TO users;
+                        ELSE
+                            DROP TABLE kst_pengguna CASCADE;
+                        END IF;
                     END IF;
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_locations' AND table_type = 'BASE TABLE') THEN
-                        ALTER TABLE kst_locations RENAME TO kst_lokasi;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_lokasi') THEN
+                            ALTER TABLE kst_locations RENAME TO kst_lokasi;
+                        ELSE
+                            DROP TABLE kst_locations CASCADE;
+                        END IF;
                     END IF;
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_themeriset' AND table_type = 'BASE TABLE') THEN
-                        ALTER TABLE kst_themeriset RENAME TO kst_fokus_riset;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kst_fokus_riset') THEN
+                            ALTER TABLE kst_themeriset RENAME TO kst_fokus_riset;
+                        ELSE
+                            DROP TABLE kst_themeriset CASCADE;
+                        END IF;
                     END IF;
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'field_label_location' AND table_type = 'BASE TABLE') THEN
                         IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'label_data_lokasi') THEN
