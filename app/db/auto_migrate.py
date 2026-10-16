@@ -395,3 +395,13 @@ def run_auto_migration(engine):
             logger.error(f"Migration error: {e}")
             print(f"Migration error: {e}")
             raise
+
+
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+    from app.db.session import engine, Base
+    print("Menjalankan migrasi database KST BRIN secara manual...")
+    run_auto_migration(engine)
+    Base.metadata.create_all(bind=engine)
+    print("Migrasi selesai dan seluruh tabel berhasil disiapkan.")

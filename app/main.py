@@ -6,12 +6,7 @@ from app.core.config import settings, UPLOADS_DIR
 from app.db.session import engine, Base
 from app.api.v1.router import api_router
 
-# 1. Jalankan auto-migration terlebih dahulu untuk mengaktifkan ekstensi (PostGIS, UUID) & struktur tabel dasar
-from app.db.auto_migrate import run_auto_migration
-run_auto_migration(engine)
-
-# 2. Sinkronkan seluruh model SQLAlchemy
-Base.metadata.create_all(bind=engine)
+# Migrasi dan seed dijalankan secara manual via script (python -m app.db.auto_migrate / python -m app.seed.seed_data)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
