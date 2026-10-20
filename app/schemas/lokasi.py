@@ -392,14 +392,8 @@ class LokasiPublikDetail(BaseModel):
     koordinat: Optional[KoordinatRingkas] = None
     luas_ha: Optional[float] = None
     deskripsi: Optional[str] = None
-    thumbnail_url: Optional[str] = None
     galeri: List[Any] = Field(default_factory=list)
     extra_fields: List[ItemDataTambahanPublik] = Field(default_factory=list)
-
-    @field_validator("thumbnail_url", mode="after")
-    @classmethod
-    def resolve_thumb(cls, v):
-        return build_full_url(v)
 
     class Config:
         from_attributes = True

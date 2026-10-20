@@ -164,7 +164,6 @@ def get_public_location_detail(id: str, db: Session = Depends(get_db)):
         },
         "luas_ha": loc.luas_ha,
         "deskripsi": loc.deskripsi,
-        "thumbnail_url": build_full_url(loc.thumbnail_url),
         "galeri": galeri_list,
         "extra_fields": extra_fields
     }
