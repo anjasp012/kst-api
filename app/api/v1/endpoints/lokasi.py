@@ -273,7 +273,6 @@ def _build_ringkas_dict(loc: KSTLokasi) -> dict:
 
     jk_name = loc.jenis_kawasan.nama if loc.jenis_kawasan else (loc.jenis_kawasan_nama or "")
     kota_prov = loc.kota_provinsi or (f"{kab}, {prov}" if kab and prov else (prov or kab or ""))
-    thumb = build_full_url(loc.thumbnail_url)
 
     return {
         "id": loc.id,
@@ -281,7 +280,6 @@ def _build_ringkas_dict(loc: KSTLokasi) -> dict:
         "slug": loc.slug,
         "jenis_kawasan": jk_name,
         "jenis_kawasan_id": loc.jenis_kawasan_id,
-        "thumbnail_url": thumb,
         "alamat": loc.alamat or "",
         "kota_provinsi": kota_prov,
         "wilayah": {

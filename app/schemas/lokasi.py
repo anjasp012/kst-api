@@ -136,7 +136,6 @@ class LokasiRingkasItem(BaseModel):
     slug: str
     jenis_kawasan: Optional[str] = None
     jenis_kawasan_id: Optional[uuid.UUID] = None
-    thumbnail_url: Optional[str] = None
     alamat: Optional[str] = None
     kota_provinsi: Optional[str] = None
     wilayah: WilayahRingkas
@@ -145,11 +144,6 @@ class LokasiRingkasItem(BaseModel):
     longitude: Optional[float] = None
     deskripsi: Optional[str] = None
     fokus_riset: List[str] = []
-
-    @field_validator("thumbnail_url", mode="after")
-    @classmethod
-    def resolve_thumb(cls, v):
-        return build_full_url(v)
 
     class Config:
         from_attributes = True
