@@ -63,3 +63,39 @@ def build_full_url_list(urls: Optional[List[str]]) -> List[str]:
         return []
     return [build_full_url(u) for u in urls if u]
 
+
+def build_thumbnail_url(url: Optional[str]) -> Optional[str]:
+    """
+    Mengubah path/URL gambar menjadi URL thumbnail (di folder /uploads/thumbnails/).
+    Nama file tetap sama persis tanpa perlu modifikasi database.
+    Contoh:
+      - '/uploads/abc.jpg' -> 'http://domain/uploads/thumbnails/abc.jpg'
+      - 'uploads/abc.jpg'  -> 'http://domain/uploads/thumbnails/abc.jpg'
+      - 'abc.jpg'          -> 'http://domain/uploads/thumbnails/abc.jpg'
+    Jika file video (.mp4 dll), kembalikan None.
+    """
+    if not url:
+        return None
+    url = str(url).strip()
+    if not url:
+        return None
+
+    video_extensions = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
+    if any(url.lower().endswith(ext) for ext in video_extensions):
+        return None
+
+    full_url = build_full_url(url)
+    if not full_url:
+        return None
+
+    # Jika sudah merupakan URL thumbnails
+    if "/uploads/thumbnails/" in full_url:
+        return full_url
+
+    # Ganti /uploads/ dengan /uploads/thumbnails/
+    if "/uploads/" in full_url:
+        return full_url.replace("/uploads/", "/uploads/thumbnails/")
+
+    return full_url
+
+

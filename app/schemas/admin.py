@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 class UploadResponse(BaseModel):
@@ -7,6 +7,8 @@ class UploadResponse(BaseModel):
     relative_url: str
     original_filename: str
     tipe: str = "foto"
+    thumbnail_url: Optional[str] = None
+    thumbnail_relative_url: Optional[str] = None
 
 
 class KSTAnalyticsResponse(BaseModel):

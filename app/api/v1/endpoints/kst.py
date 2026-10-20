@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.helpers import build_full_url
+from app.core.helpers import build_full_url, build_thumbnail_url
 from app.api.v1.endpoints.master import get_master_data
 from app.api.v1.endpoints.lokasi import (
     get_all_locations_ringkas,
@@ -124,7 +124,7 @@ def get_public_location_detail(id: str, db: Session = Depends(get_db)):
             "value": final_val
         })
 
-    # 2. Sinkronkan galeri dengan URL lengkap
+    # 2. Sinkronkan galeri dengan URL lengkap dan versi thumbnail
     galeri_list = []
     video_exts = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
     for g in (loc.galeri or []):
@@ -132,9 +132,11 @@ def get_public_location_detail(id: str, db: Session = Depends(get_db)):
         u_full = build_full_url(raw_u)
         is_video = any(u_full.lower().endswith(ext) for ext in video_exts) if u_full else False
         tipe_val = g.get("tipe") if isinstance(g, dict) else ("video" if is_video else "foto")
+        t_full = None if is_video else build_thumbnail_url(raw_u)
         galeri_list.append({
             "tipe": tipe_val,
-            "url": u_full
+            "url": u_full,
+            "thumbnail_url": t_full
         })
 
     jk_nama = loc.jenis_kawasan.nama if loc.jenis_kawasan else (getattr(loc, "jenis_kawasan_nama", None) or None)

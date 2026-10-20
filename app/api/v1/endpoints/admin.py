@@ -12,8 +12,8 @@ from app.models.lokasi import KSTLokasi
 from app.models.jenis_kawasan import KSTJenisKawasan
 from app.schemas.admin import UploadResponse, KSTAnalyticsResponse
 from app.api.v1.deps import get_current_admin
-from app.core.helpers import build_full_url
-from app.core.config import UPLOADS_DIR
+from app.core.helpers import build_full_url, build_thumbnail_url
+from app.core.config import UPLOADS_DIR, THUMBNAILS_DIR
 
 from app.models.wilayah import WilayahProvinsi, WilayahKabupatenKota
 from app.models.tema_riset import KSTFokusRiset
@@ -231,13 +231,67 @@ def upload_file(
     with open(destination_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    media_tipe = "video" if ext in video_extensions else "foto"
+    thumbnail_url = None
+    thumbnail_relative_url = None
+
+    # Jika file adalah foto/gambar, buat versi thumbnail dan optimasi foto utama
+    if ext in {".jpg", ".jpeg", ".png", ".webp"}:
+        try:
+            from PIL import Image, ImageOps
+            with Image.open(destination_path) as img_raw:
+                img_raw.load()
+                img = ImageOps.exif_transpose(img_raw).copy()
+
+            is_jpeg = ext in (".jpg", ".jpeg")
+            if is_jpeg and img.mode in ("RGBA", "P", "LA"):
+                img = img.convert("RGB")
+
+            # 1. Simpan Thumbnail ke folder uploads/thumbnails/{unique_filename} (max 400x400)
+            thumb_dest = os.path.join(THUMBNAILS_DIR, unique_filename)
+            img_thumb = img.copy()
+            img_thumb.thumbnail((400, 400), Image.Resampling.LANCZOS)
+            if is_jpeg and img_thumb.mode != "RGB":
+                img_thumb = img_thumb.convert("RGB")
+            img_thumb.save(
+                thumb_dest,
+                format="JPEG" if is_jpeg else (img.format or "PNG"),
+                quality=75,
+                optimize=True
+            )
+
+            # 2. Optimasi Foto Utama jika dimensi > 1600px atau ukuran > 400KB
+            orig_size = os.path.getsize(destination_path)
+            if img.width > 1600 or img.height > 1600 or orig_size > (400 * 1024):
+                img_main = img.copy()
+                if img.width > 1600 or img.height > 1600:
+                    img_main.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+                if is_jpeg and img_main.mode != "RGB":
+                    img_main = img_main.convert("RGB")
+
+                temp_path = destination_path + ".tmp"
+                img_main.save(
+                    temp_path,
+                    format="JPEG" if is_jpeg else (img.format or "PNG"),
+                    quality=82,
+                    optimize=True
+                )
+                os.replace(temp_path, destination_path)
+
+            thumbnail_url = build_full_url(f"/uploads/thumbnails/{unique_filename}")
+            thumbnail_relative_url = f"/uploads/thumbnails/{unique_filename}"
+        except Exception as e:
+            # Jika ada kendala pemrosesan gambar, fallback tanpa gagalkan upload
+            print(f"Warning thumbnail generation failed: {e}")
+
     full_url = build_full_url(f"/uploads/{unique_filename}")
     relative_url = f"/uploads/{unique_filename}"
-    media_tipe = "video" if ext in video_extensions else "foto"
 
     return UploadResponse(
         file_url=full_url,
         relative_url=relative_url,
+        thumbnail_url=thumbnail_url,
+        thumbnail_relative_url=thumbnail_relative_url,
         original_filename=file.filename,
         tipe=media_tipe
     )
