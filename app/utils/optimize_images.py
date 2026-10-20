@@ -14,11 +14,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def optimize_all_images(uploads_dir: str = UPLOADS_DIR):
+def generate_thumbnails(uploads_dir: str = UPLOADS_DIR):
     """
     1. Membuat folder uploads/thumbnails jika belum ada.
     2. Membuat versi thumbnail (max 400x400, quality 75) di uploads/thumbnails/{filename}.
-    3. Mengompres dan me-resize foto utama di uploads/{filename} (max 1600x1600, quality 82).
+    3. File asli di folder uploads/ TIDAK DIUBAH SAMA SEKALI (tetap utuh dan asli).
     Nama file tetap sama persis sehingga database tidak perlu diubah.
     """
     thumbnails_dir = os.path.join(uploads_dir, "thumbnails")
@@ -28,11 +28,11 @@ def optimize_all_images(uploads_dir: str = UPLOADS_DIR):
     files = [f for f in os.listdir(uploads_dir) if os.path.isfile(os.path.join(uploads_dir, f))]
     image_files = [f for f in files if os.path.splitext(f)[1].lower() in image_exts]
 
-    print(f"=== MEMULAI OPTIMASI GAMBAR DI: {uploads_dir} ===")
-    print(f"Ditemukan {len(image_files)} file gambar untuk diproses.\n")
+    print(f"=== MEMULAI PEMBUATAN THUMBNAIL DI: {thumbnails_dir} ===")
+    print("File asli di uploads/ dibiarkan utuh tanpa diubah/dikecilkan.")
+    print(f"Ditemukan {len(image_files)} file gambar untuk dibuatkan thumbnail.\n")
 
     total_orig_bytes = 0
-    total_new_bytes = 0
     total_thumb_bytes = 0
     processed_count = 0
     error_count = 0
@@ -46,7 +46,7 @@ def optimize_all_images(uploads_dir: str = UPLOADS_DIR):
             orig_size = os.path.getsize(src_path)
             total_orig_bytes += orig_size
 
-            # Buka dan load sepenuhnya ke RAM, lalu tutup file handle agar os.replace di Windows tidak Access Denied
+            # Buka dan load ke RAM
             with Image.open(src_path) as img_raw:
                 img_raw.load()
                 img = ImageOps.exif_transpose(img_raw).copy()
@@ -56,7 +56,7 @@ def optimize_all_images(uploads_dir: str = UPLOADS_DIR):
             if is_jpeg and img.mode in ("RGBA", "P", "LA"):
                 img = img.convert("RGB")
 
-            # 1. Generate Thumbnail (max 400x400) ke folder thumbnails/
+            # Generate Thumbnail (max 400x400) ke folder thumbnails/
             img_thumb = img.copy()
             img_thumb.thumbnail((400, 400), Image.Resampling.LANCZOS)
             if is_jpeg and img_thumb.mode != "RGB":
@@ -70,56 +70,26 @@ def optimize_all_images(uploads_dir: str = UPLOADS_DIR):
             )
             thumb_size = os.path.getsize(thumb_path)
             total_thumb_bytes += thumb_size
-
-            # 2. Optimasi Gambar Utama (max 1600x1600) jika lebih besar
-            needs_resize = img.width > 1600 or img.height > 1600
-            needs_compression = orig_size > (400 * 1024)  # jika > 400 KB
-
-            if needs_resize or needs_compression:
-                img_main = img.copy()
-                if needs_resize:
-                    img_main.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-                if is_jpeg and img_main.mode != "RGB":
-                    img_main = img_main.convert("RGB")
-
-                temp_path = src_path + ".tmp"
-                img_main.save(
-                    temp_path,
-                    format="JPEG" if is_jpeg else (img.format or "PNG"),
-                    quality=82,
-                    optimize=True
-                )
-                # Gantikan file asli (karena handle sudah ditutup, os.replace aman)
-                os.replace(temp_path, src_path)
-
-            new_size = os.path.getsize(src_path)
-            total_new_bytes += new_size
             processed_count += 1
 
             if idx % 10 == 0 or idx == len(image_files):
-                print(f"[{idx}/{len(image_files)}] Diproses: {fname} (Asli: {orig_size/1024:.0f}KB -> Utama: {new_size/1024:.0f}KB | Thumb: {thumb_size/1024:.0f}KB)")
+                print(f"[{idx}/{len(image_files)}] Thumbnail dibuat: {fname} (Asli: {orig_size/1024:.0f}KB -> Thumb: {thumb_size/1024:.0f}KB)")
 
         except Exception as e:
             error_count += 1
             print(f"[ERROR] Gagal memproses {fname}: {e}")
 
     orig_mb = total_orig_bytes / (1024 * 1024)
-    new_mb = total_new_bytes / (1024 * 1024)
     thumb_mb = total_thumb_bytes / (1024 * 1024)
-    saved_mb = orig_mb - (new_mb + thumb_mb)
-    pct = (saved_mb / orig_mb * 100) if orig_mb > 0 else 0
 
     print("\n" + "="*50)
-    print("HASIL OPTIMASI SELESAI:")
-    print(f"- Total Gambar Diproses: {processed_count}")
+    print("HASIL PEMBUATAN THUMBNAIL SELESAI:")
+    print(f"- Total Thumbnail Berhasil: {processed_count}")
     print(f"- Gagal: {error_count}")
-    print(f"- Ukuran Asli Sebelumnya: {orig_mb:.2f} MB")
-    print(f"- Ukuran Foto Utama (1600px): {new_mb:.2f} MB")
-    print(f"- Ukuran Folder Thumbnails (400px): {thumb_mb:.2f} MB")
-    print(f"- Total Ukuran Baru: {new_mb + thumb_mb:.2f} MB")
-    print(f"- Penghematan Bersih: {saved_mb:.2f} MB ({pct:.1f}% LEBIH RINGAN!)")
+    print(f"- Ukuran Total File Asli di uploads/: {orig_mb:.2f} MB (TETAP UTUH TANPA DIUBAH)")
+    print(f"- Ukuran Total Folder uploads/thumbnails/: {thumb_mb:.2f} MB")
     print("="*50)
 
 
 if __name__ == "__main__":
-    optimize_all_images()
+    generate_thumbnails()

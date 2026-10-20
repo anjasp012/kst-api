@@ -247,7 +247,7 @@ def upload_file(
             if is_jpeg and img.mode in ("RGBA", "P", "LA"):
                 img = img.convert("RGB")
 
-            # 1. Simpan Thumbnail ke folder uploads/thumbnails/{unique_filename} (max 400x400)
+            # Simpan Thumbnail ke folder uploads/thumbnails/{unique_filename} (max 400x400)
             thumb_dest = os.path.join(THUMBNAILS_DIR, unique_filename)
             img_thumb = img.copy()
             img_thumb.thumbnail((400, 400), Image.Resampling.LANCZOS)
@@ -259,24 +259,6 @@ def upload_file(
                 quality=75,
                 optimize=True
             )
-
-            # 2. Optimasi Foto Utama jika dimensi > 1600px atau ukuran > 400KB
-            orig_size = os.path.getsize(destination_path)
-            if img.width > 1600 or img.height > 1600 or orig_size > (400 * 1024):
-                img_main = img.copy()
-                if img.width > 1600 or img.height > 1600:
-                    img_main.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-                if is_jpeg and img_main.mode != "RGB":
-                    img_main = img_main.convert("RGB")
-
-                temp_path = destination_path + ".tmp"
-                img_main.save(
-                    temp_path,
-                    format="JPEG" if is_jpeg else (img.format or "PNG"),
-                    quality=82,
-                    optimize=True
-                )
-                os.replace(temp_path, destination_path)
 
             thumbnail_url = build_full_url(f"/uploads/thumbnails/{unique_filename}")
             thumbnail_relative_url = f"/uploads/thumbnails/{unique_filename}"
