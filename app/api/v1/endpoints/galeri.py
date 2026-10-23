@@ -10,17 +10,22 @@ from app.models.lokasi import KSTLokasi
 from app.models.user import User
 from app.schemas.galeri import GaleriItem, GaleriCreate, GaleriUpdate
 from app.api.v1.deps import get_current_admin
-from app.core.helpers import build_full_url
+from app.core.helpers import build_full_url, build_thumbnail_url
 
 router = APIRouter()
 
 
 def _format_item(item: KSTGaleri) -> dict:
+    t = item.tipe or "foto"
     return {
         "id": item.id,
         "lokasi_id": item.lokasi_id,
-        "tipe": item.tipe or "foto",
+        "tipe": t,
+        "type": t,
         "url": build_full_url(item.url),
+        "thumbnail_url": build_thumbnail_url(item.url),
+        "caption": item.caption or "",
+        "sort": item.sort if item.sort is not None else 0,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }
@@ -38,7 +43,7 @@ def get_galeri_list(
     if tipe:
         query = query.filter(KSTGaleri.tipe == tipe.lower().strip())
     
-    query = query.order_by(desc(KSTGaleri.created_at))
+    query = query.order_by(KSTGaleri.sort.asc(), KSTGaleri.created_at.asc())
     items = query.all()
     return [_format_item(item) for item in items]
 
@@ -64,7 +69,7 @@ def create_galeri(
     if not loc:
         raise HTTPException(status_code=400, detail="Lokasi KST tidak ditemukan")
 
-    tipe_val = (payload.tipe or "foto").lower().strip()
+    tipe_val = (payload.tipe or payload.type or "foto").lower().strip()
     if tipe_val not in ("foto", "video"):
         tipe_val = "foto"
 
@@ -72,6 +77,8 @@ def create_galeri(
         lokasi_id=payload.lokasi_id,
         tipe=tipe_val,
         url=payload.url,
+        caption=payload.caption or "",
+        sort=payload.sort if payload.sort is not None else 0,
     )
     db.add(new_item)
     db.commit()
@@ -91,11 +98,14 @@ def update_galeri(
         raise HTTPException(status_code=404, detail="Item galeri tidak ditemukan")
 
     update_dict = payload.dict(exclude_unset=True)
+    if "type" in update_dict and not update_dict.get("tipe"):
+        update_dict["tipe"] = update_dict.pop("type")
     if "tipe" in update_dict and update_dict["tipe"]:
         update_dict["tipe"] = update_dict["tipe"].lower().strip()
 
     for key, val in update_dict.items():
-        setattr(item, key, val)
+        if hasattr(item, key):
+            setattr(item, key, val)
 
     db.commit()
     db.refresh(item)

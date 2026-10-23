@@ -50,7 +50,7 @@ class KSTLokasi(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 7. Relasi Child: Galeri & Nilai Data Lokasi (Tab Dinamis)
-    galeri_items = relationship("KSTGaleri", back_populates="lokasi", cascade="all, delete-orphan", order_by="KSTGaleri.created_at")
+    galeri_items = relationship("KSTGaleri", back_populates="lokasi", cascade="all, delete-orphan", order_by="[KSTGaleri.sort, KSTGaleri.created_at]")
     extra_fields = relationship("NilaiDataLokasi", back_populates="lokasi", cascade="all, delete-orphan", order_by="NilaiDataLokasi.created_at")
 
     # --- Property Accessors for Relational & Dynamic Fields ---
@@ -313,8 +313,10 @@ class KSTLokasi(Base):
                 "lokasi_id": str(g.lokasi_id),
                 "tipe": g.tipe or "foto",
                 "url": g.url,
+                "caption": g.caption or "",
+                "sort": g.sort if g.sort is not None else idx,
             }
-            for g in self.galeri_items
+            for idx, g in enumerate(self.galeri_items)
         ]
 
     @galeri.setter

@@ -26,7 +26,7 @@ from app.schemas.lokasi import (
     LabelDataLokasiCreate,
     LabelDataLokasiUpdate,
 )
-from app.core.helpers import build_full_url
+from app.core.helpers import build_full_url, build_thumbnail_url
 from app.api.v1.deps import get_current_admin
 
 router = APIRouter()
@@ -44,7 +44,7 @@ def _sync_galeri_items(db: Session, lokasi_id: uuid.UUID, galeri_data: list):
     db.query(KSTGaleri).filter(KSTGaleri.lokasi_id == lokasi_id).delete()
     video_exts = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
     
-    for item in galeri_data:
+    for idx, item in enumerate(galeri_data):
         if isinstance(item, str):
             url_str = item.strip()
             if not url_str:
@@ -54,7 +54,9 @@ def _sync_galeri_items(db: Session, lokasi_id: uuid.UUID, galeri_data: list):
             new_g = KSTGaleri(
                 lokasi_id=lokasi_id,
                 tipe=tipe,
-                url=url_str
+                url=url_str,
+                caption="",
+                sort=idx
             )
             db.add(new_g)
         elif isinstance(item, dict):
@@ -64,14 +66,20 @@ def _sync_galeri_items(db: Session, lokasi_id: uuid.UUID, galeri_data: list):
             url_str = str(raw_url or "").strip()
             if not url_str:
                 continue
-            tipe = str(item.get("tipe") or "foto").lower().strip()
+            tipe = str(item.get("tipe") or item.get("type") or "foto").lower().strip()
             if tipe not in ("foto", "video"):
                 is_video = any(url_str.lower().endswith(ext) for ext in video_exts)
                 tipe = "video" if is_video else "foto"
+            caption_val = str(item.get("caption") or item.get("keterangan") or "").strip()
+            sort_val = item.get("sort")
+            if sort_val is None or not isinstance(sort_val, int):
+                sort_val = idx
             new_g = KSTGaleri(
                 lokasi_id=lokasi_id,
                 tipe=tipe,
-                url=url_str
+                url=url_str,
+                caption=caption_val,
+                sort=sort_val
             )
             db.add(new_g)
     db.flush()
@@ -709,14 +717,19 @@ def get_location_detail(id: str, db: Session = Depends(get_db)):
     # 1. Sinkronisasi data galeri dari tabel kst_galeri jika ada relasi
     galeri_list = []
     if loc.galeri_items:
+        sorted_items = sorted(loc.galeri_items, key=lambda g: (g.sort if g.sort is not None else 0, g.created_at))
         galeri_list = [
             {
                 "id": str(g.id),
                 "lokasi_id": str(g.lokasi_id),
                 "tipe": g.tipe or "foto",
+                "type": g.tipe or "foto",
                 "url": build_full_url(g.url),
+                "thumbnail_url": build_thumbnail_url(g.url),
+                "caption": g.caption or "",
+                "sort": g.sort if g.sort is not None else idx,
             }
-            for g in loc.galeri_items
+            for idx, g in enumerate(sorted_items)
         ]
         loc.galeri = galeri_list
 

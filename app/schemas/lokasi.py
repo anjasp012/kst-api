@@ -223,24 +223,37 @@ class LokasiDetail(LokasiBase):
             return []
         video_exts = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
         resolved = []
-        for item in v:
+        for idx, item in enumerate(v):
             if isinstance(item, str):
                 is_video = any(item.lower().endswith(ext) for ext in video_exts)
+                t_val = "video" if is_video else "foto"
+                u_val = build_full_url(item)
+                thumb_val = build_thumbnail_url(item)
                 resolved.append({
-                    "tipe": "video" if is_video else "foto",
-                    "url": build_full_url(item),
-                    "thumbnail_url": build_thumbnail_url(item)
+                    "tipe": t_val,
+                    "type": t_val,
+                    "url": u_val,
+                    "thumbnail_url": thumb_val,
+                    "caption": "",
+                    "sort": idx
                 })
             elif isinstance(item, dict):
                 raw_url = item.get("url", "")
                 if isinstance(raw_url, dict):
                     raw_url = raw_url.get("relative_url") or raw_url.get("file_url") or raw_url.get("url") or ""
                 url_val = build_full_url(str(raw_url or ""))
-                tipe_val = item.get("tipe") or ("video" if url_val and any(url_val.lower().endswith(ext) for ext in video_exts) else "foto")
+                tipe_val = item.get("tipe") or item.get("type") or ("video" if url_val and any(url_val.lower().endswith(ext) for ext in video_exts) else "foto")
+                caption_val = str(item.get("caption") or item.get("keterangan") or "")
+                sort_val = item.get("sort")
+                if sort_val is None or not isinstance(sort_val, int):
+                    sort_val = idx
                 entry = {
                     "tipe": tipe_val,
+                    "type": tipe_val,
                     "url": url_val,
-                    "thumbnail_url": build_thumbnail_url(item.get("thumbnail_url") or str(raw_url or ""))
+                    "thumbnail_url": build_thumbnail_url(item.get("thumbnail_url") or str(raw_url or "")),
+                    "caption": caption_val,
+                    "sort": sort_val
                 }
                 if "id" in item and item["id"]:
                     entry["id"] = item["id"]
@@ -249,6 +262,8 @@ class LokasiDetail(LokasiBase):
                 resolved.append(entry)
             else:
                 resolved.append(item)
+        # Urutkan berdasarkan sort ASC
+        resolved.sort(key=lambda x: x.get("sort", 0) if isinstance(x, dict) else 0)
         return resolved
 
     @field_validator("extra_fields", mode="before")

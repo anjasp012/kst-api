@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.session import Base
@@ -9,7 +9,7 @@ from app.db.session import Base
 class KSTGaleri(Base):
     """
     Tabel terpisah untuk Galeri Media KST (Foto & Video) dengan relasi ke kst_lokasi (lokasi_id).
-    Hanya menyimpan tipe ('foto'/'video') dan url.
+    Menyimpan tipe ('foto'/'video'), url, caption, dan sort urutan.
     """
     __tablename__ = "kst_galeri"
 
@@ -17,6 +17,8 @@ class KSTGaleri(Base):
     lokasi_id = Column(UUID(as_uuid=True), ForeignKey("kst_lokasi.id", ondelete="CASCADE"), nullable=False, index=True)
     tipe = Column(String(20), nullable=False, default="foto")  # 'foto' atau 'video'
     url = Column(Text, nullable=False)
+    caption = Column(Text, nullable=True)
+    sort = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
