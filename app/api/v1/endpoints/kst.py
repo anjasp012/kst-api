@@ -131,23 +131,36 @@ def get_public_location_detail(id: str, db: Session = Depends(get_db)):
         raw_u = g.get("url") if isinstance(g, dict) else g
         u_full = build_full_url(raw_u)
         is_video = any(u_full.lower().endswith(ext) for ext in video_exts) if u_full else False
-        tipe_val = (g.get("tipe") or g.get("type")) if isinstance(g, dict) else ("video" if is_video else "foto")
+        tipe_val = (g.get("type") or g.get("tipe")) if isinstance(g, dict) else ("video" if is_video else "foto")
         t_full = (g.get("thumbnail_url") or build_thumbnail_url(raw_u)) if isinstance(g, dict) else build_thumbnail_url(raw_u)
-        caption_val = str(g.get("caption") or g.get("keterangan") or "") if isinstance(g, dict) else ""
+        caption_val = str(g.get("caption") or g.get("keterangan") or "").strip() if isinstance(g, dict) else ""
         sort_val = g.get("sort") if isinstance(g, dict) else idx
         if sort_val is None or not isinstance(sort_val, int):
             sort_val = idx
 
         galeri_list.append({
             "type": tipe_val,
-            "tipe": tipe_val,
             "url": u_full,
             "thumbnail_url": t_full,
             "sort": sort_val,
             "caption": caption_val
         })
 
-    galeri_list.sort(key=lambda x: x["sort"])
+    # Urutkan berdasarkan type (foto duluan, baru video) dan urutan sort
+    galeri_list.sort(key=lambda x: (0 if x["type"] == "foto" else 1, x["sort"]))
+
+    # Jika caption kosong di database, ubah menjadi 'Foto 1', 'Foto 2', dst. dan 'Video 1', 'Video 2', dst.
+    foto_count = 0
+    video_count = 0
+    for item in galeri_list:
+        if item["type"] == "foto":
+            foto_count += 1
+            if not item["caption"]:
+                item["caption"] = f"Foto {foto_count}"
+        else:
+            video_count += 1
+            if not item["caption"]:
+                item["caption"] = f"Video {video_count}"
 
     jk_nama = loc.jenis_kawasan.nama if loc.jenis_kawasan else (getattr(loc, "jenis_kawasan_nama", None) or None)
 

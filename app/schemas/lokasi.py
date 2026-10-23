@@ -392,11 +392,10 @@ class LokasiDetail(LokasiBase):
 
 class ItemGaleriPublik(BaseModel):
     type: str = Field("foto", description="Tipe media: foto atau video")
-    tipe: str = Field("foto", description="Alias tipe media")
     url: str = Field(..., description="Full URL file media")
     thumbnail_url: Optional[str] = Field(None, description="Full URL thumbnail media")
     sort: int = Field(0, description="Nomor urutan media")
-    caption: Optional[str] = Field("", description="Keterangan / caption media")
+    caption: str = Field("", description="Keterangan / caption media")
 
     class Config:
         from_attributes = True
