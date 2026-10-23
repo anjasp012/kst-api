@@ -2,7 +2,7 @@ import uuid
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
-from app.core.helpers import build_full_url, build_full_url_list
+from app.core.helpers import build_full_url, build_full_url_list, build_thumbnail_url
 
 
 class WilayahRingkas(BaseModel):

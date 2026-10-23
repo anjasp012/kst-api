@@ -78,9 +78,19 @@ async def integrity_exception_handler(request: Request, exc: IntegrityError):
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
     traceback.print_exc()
+    error_type = type(exc).__name__
+    error_msg = str(exc)
+    actual_detail = f"{error_type}: {error_msg}" if error_msg else f"Server Error ({error_type})"
+    
     response = JSONResponse(
         status_code=500,
-        content={"detail": "Terjadi kendala pada sistem server saat memproses data. Silakan coba beberapa saat lagi atau hubungi administrator."},
+        content={
+            "detail": actual_detail,
+            "message": "Terjadi kendala pada sistem server saat memproses data. Silakan coba beberapa saat lagi atau hubungi administrator.",
+            "error_type": error_type,
+            "error_detail": error_msg or actual_detail,
+            "traceback": traceback.format_exc(),
+        },
     )
     origin = request.headers.get("origin")
     if origin:
