@@ -228,7 +228,8 @@ class LokasiDetail(LokasiBase):
                 is_video = any(item.lower().endswith(ext) for ext in video_exts)
                 resolved.append({
                     "tipe": "video" if is_video else "foto",
-                    "url": build_full_url(item)
+                    "url": build_full_url(item),
+                    "thumbnail_url": build_thumbnail_url(item)
                 })
             elif isinstance(item, dict):
                 raw_url = item.get("url", "")
@@ -238,7 +239,8 @@ class LokasiDetail(LokasiBase):
                 tipe_val = item.get("tipe") or ("video" if url_val and any(url_val.lower().endswith(ext) for ext in video_exts) else "foto")
                 entry = {
                     "tipe": tipe_val,
-                    "url": url_val
+                    "url": url_val,
+                    "thumbnail_url": build_thumbnail_url(item.get("thumbnail_url") or str(raw_url or ""))
                 }
                 if "id" in item and item["id"]:
                     entry["id"] = item["id"]

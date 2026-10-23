@@ -82,6 +82,12 @@ def build_thumbnail_url(url: Optional[str]) -> Optional[str]:
 
     video_extensions = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
     if any(url.lower().endswith(ext) for ext in video_extensions):
+        import os
+        from app.core.config import THUMBNAILS_DIR
+        base_name = os.path.splitext(os.path.basename(url))[0]
+        thumb_file = f"{base_name}.jpg"
+        if os.path.exists(os.path.join(THUMBNAILS_DIR, thumb_file)):
+            return build_full_url(f"/uploads/thumbnails/{thumb_file}")
         return None
 
     full_url = build_full_url(url)

@@ -266,6 +266,32 @@ def upload_file(
             # Jika ada kendala pemrosesan gambar, fallback tanpa gagalkan upload
             print(f"Warning thumbnail generation failed: {e}")
 
+    elif ext in video_extensions:
+        try:
+            import cv2
+            base_name = os.path.splitext(unique_filename)[0]
+            thumb_filename = f"{base_name}.jpg"
+            thumb_dest = os.path.join(THUMBNAILS_DIR, thumb_filename)
+            vidcap = cv2.VideoCapture(destination_path)
+            fps = vidcap.get(cv2.CAP_PROP_FPS) or 24.0
+            vidcap.set(cv2.CAP_PROP_POS_FRAMES, int(fps * 1.0))
+            success, image = vidcap.read()
+            if not success:
+                vidcap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                success, image = vidcap.read()
+            if success and image is not None:
+                h, w = image.shape[:2]
+                max_dim = 400
+                if max(w, h) > max_dim:
+                    scale = max_dim / max(w, h)
+                    image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+                cv2.imwrite(thumb_dest, image, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                thumbnail_url = build_full_url(f"/uploads/thumbnails/{thumb_filename}")
+                thumbnail_relative_url = f"/uploads/thumbnails/{thumb_filename}"
+            vidcap.release()
+        except Exception as e:
+            print(f"Notice: server video thumbnail extraction passed to client: {e}")
+
     full_url = build_full_url(f"/uploads/{unique_filename}")
     relative_url = f"/uploads/{unique_filename}"
 

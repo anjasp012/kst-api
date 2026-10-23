@@ -132,7 +132,7 @@ def get_public_location_detail(id: str, db: Session = Depends(get_db)):
         u_full = build_full_url(raw_u)
         is_video = any(u_full.lower().endswith(ext) for ext in video_exts) if u_full else False
         tipe_val = g.get("tipe") if isinstance(g, dict) else ("video" if is_video else "foto")
-        t_full = None if is_video else build_thumbnail_url(raw_u)
+        t_full = build_thumbnail_url(raw_u)
         galeri_list.append({
             "tipe": tipe_val,
             "url": u_full,

@@ -107,6 +107,10 @@ class KSTLokasi(Base):
             for g in self.galeri_items:
                 if (g.tipe or "foto") == "foto" and g.url:
                     return g.url
+            # Fallback jika hanya ada video di galeri
+            for g in self.galeri_items:
+                if g.url:
+                    return g.url
         return None
 
     @thumbnail_url.setter
