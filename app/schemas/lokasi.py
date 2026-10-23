@@ -390,6 +390,18 @@ class LokasiDetail(LokasiBase):
         from_attributes = True
 
 
+class ItemGaleriPublik(BaseModel):
+    type: str = Field("foto", description="Tipe media: foto atau video")
+    tipe: str = Field("foto", description="Alias tipe media")
+    url: str = Field(..., description="Full URL file media")
+    thumbnail_url: Optional[str] = Field(None, description="Full URL thumbnail media")
+    sort: int = Field(0, description="Nomor urutan media")
+    caption: Optional[str] = Field("", description="Keterangan / caption media")
+
+    class Config:
+        from_attributes = True
+
+
 class LokasiPublikDetail(BaseModel):
     id: uuid.UUID
     nama: str
@@ -409,7 +421,7 @@ class LokasiPublikDetail(BaseModel):
     koordinat: Optional[KoordinatRingkas] = None
     luas_ha: Optional[float] = None
     deskripsi: Optional[str] = None
-    galeri: List[Any] = Field(default_factory=list)
+    galeri: List[ItemGaleriPublik] = Field(default_factory=list, description="Daftar media galeri terurut berdasarkan sort")
     extra_fields: List[ItemDataTambahanPublik] = Field(default_factory=list)
 
     class Config:

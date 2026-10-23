@@ -124,20 +124,30 @@ def get_public_location_detail(id: str, db: Session = Depends(get_db)):
             "value": final_val
         })
 
-    # 2. Sinkronkan galeri dengan URL lengkap dan versi thumbnail
+    # 2. Sinkronkan galeri dengan URL lengkap, thumbnail, caption, dan sort
     galeri_list = []
     video_exts = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
-    for g in (loc.galeri or []):
+    for idx, g in enumerate(loc.galeri or []):
         raw_u = g.get("url") if isinstance(g, dict) else g
         u_full = build_full_url(raw_u)
         is_video = any(u_full.lower().endswith(ext) for ext in video_exts) if u_full else False
-        tipe_val = g.get("tipe") if isinstance(g, dict) else ("video" if is_video else "foto")
-        t_full = build_thumbnail_url(raw_u)
+        tipe_val = (g.get("tipe") or g.get("type")) if isinstance(g, dict) else ("video" if is_video else "foto")
+        t_full = (g.get("thumbnail_url") or build_thumbnail_url(raw_u)) if isinstance(g, dict) else build_thumbnail_url(raw_u)
+        caption_val = str(g.get("caption") or g.get("keterangan") or "") if isinstance(g, dict) else ""
+        sort_val = g.get("sort") if isinstance(g, dict) else idx
+        if sort_val is None or not isinstance(sort_val, int):
+            sort_val = idx
+
         galeri_list.append({
+            "type": tipe_val,
             "tipe": tipe_val,
             "url": u_full,
-            "thumbnail_url": t_full
+            "thumbnail_url": t_full,
+            "sort": sort_val,
+            "caption": caption_val
         })
+
+    galeri_list.sort(key=lambda x: x["sort"])
 
     jk_nama = loc.jenis_kawasan.nama if loc.jenis_kawasan else (getattr(loc, "jenis_kawasan_nama", None) or None)
 
