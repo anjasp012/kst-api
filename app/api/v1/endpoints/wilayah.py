@@ -58,6 +58,8 @@ def _get_active_location_wilayah_map(db: Session):
                 "kode": p_kode,
                 "nama": matched_prov.nama,
                 "total_lokasi": 0,
+                "created_at": matched_prov.created_at,
+                "updated_at": matched_prov.updated_at or matched_prov.created_at,
                 "kabupaten_kota": {}
             }
         prov_map[p_kode]["total_lokasi"] += 1
@@ -77,7 +79,9 @@ def _get_active_location_wilayah_map(db: Session):
                     "kode": k_kode,
                     "nama": matched_kab.nama,
                     "tipe": matched_kab.tipe,
-                    "total_lokasi": 0
+                    "total_lokasi": 0,
+                    "created_at": matched_kab.created_at,
+                    "updated_at": matched_kab.updated_at or matched_kab.created_at
                 }
             prov_map[p_kode]["kabupaten_kota"][k_kode]["total_lokasi"] += 1
 
@@ -105,6 +109,8 @@ def get_master_wilayah(
                 "kode": p_data["kode"],
                 "nama": p_data["nama"],
                 "total_lokasi": p_data["total_lokasi"],
+                "created_at": p_data.get("created_at"),
+                "updated_at": p_data.get("updated_at") or p_data.get("created_at"),
                 "kabupaten_kota": kabs_list
             })
         return results
@@ -115,12 +121,16 @@ def get_master_wilayah(
             "kode": p.kode,
             "nama": p.nama,
             "total_lokasi": prov_map.get(p.kode, {}).get("total_lokasi", 0),
+            "created_at": p.created_at,
+            "updated_at": p.updated_at or p.created_at,
             "kabupaten_kota": [
                 {
                     "kode": k.kode,
                     "nama": k.nama,
                     "tipe": k.tipe,
-                    "total_lokasi": prov_map.get(p.kode, {}).get("kabupaten_kota", {}).get(k.kode, {}).get("total_lokasi", 0)
+                    "total_lokasi": prov_map.get(p.kode, {}).get("kabupaten_kota", {}).get(k.kode, {}).get("total_lokasi", 0),
+                    "created_at": k.created_at,
+                    "updated_at": k.updated_at or k.created_at
                 }
                 for k in p.kabupaten_kota
             ]

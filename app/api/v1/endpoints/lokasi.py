@@ -1,8 +1,9 @@
 import uuid
 import re
+import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, UploadFile, File, Form
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, subqueryload
 from sqlalchemy import func, or_, text, Text
 from geoalchemy2.elements import WKTElement
 from geoalchemy2 import functions as geofunc
@@ -22,6 +23,8 @@ from app.schemas.lokasi import (
     LokasiUpdate, 
     LokasiRingkasItem,
     LokasiRingkasListResponse,
+    LokasiPublikDetail,
+    LokasiPublikListResponse,
     LokasiFilterRequest,
     LabelDataLokasiCreate,
     LabelDataLokasiUpdate,
@@ -259,19 +262,143 @@ def _sync_extra_fields(db: Session, lokasi_id: uuid.UUID, extra_fields: list):
 # 🗺️ 1. PETA INTERAKTIF JELAJAHI KAWASAN TERPADU BRIN & SPASIAL (PUBLIC)
 # =========================================================================
 
-def _build_ringkas_dict(loc: KSTLokasi) -> dict:
-    prov = loc.provinsi.nama if loc.provinsi else ""
-    kab = loc.kabupaten_kota.nama if loc.kabupaten_kota else ""
-    if not prov and loc.kota_provinsi:
-        parts = [p.strip() for p in loc.kota_provinsi.split(",")]
-        if len(parts) >= 2:
-            kab = parts[0]
-            prov = parts[1]
+def format_lokasi_publik(loc: KSTLokasi, db: Session, fokus_cache: Optional[dict] = None) -> dict:
+    """
+    Format data lokasi publik dengan field lengkap, identik persis dengan endpoint /data-lokasi/{id}.
+    """
+    # 1. Kumpulkan nilai_data_lokasi berdasarkan label_data_lokasi
+    grouped = {}
+    for ef in (loc.extra_fields or []):
+        fl = ef.field_label
+        if not fl:
+            continue
+        val = ef.value
+        if val is None or str(val).strip() == "":
+            continue
+
+        label_key = str(fl.id)
+        if label_key not in grouped:
+            grouped[label_key] = {
+                "label": fl.nama,
+                "slug": fl.slug,
+                "icon": fl.icon or "FileText",
+                "values": [],
+                "created_at": getattr(ef, "created_at", None),
+                "updated_at": getattr(ef, "updated_at", None) or getattr(ef, "created_at", None)
+            }
+
+        parsed_val = val
+        if isinstance(val, str) and (val.strip().startswith("[") or val.strip().startswith("{")):
+            try:
+                parsed_val = json.loads(val)
+            except Exception:
+                pass
+
+        # Jika UUID fokus riset, resolve ke nama tema riset
+        if isinstance(parsed_val, str) and len(parsed_val.strip()) == 36:
+            str_u = parsed_val.strip().lower()
+            if fokus_cache is not None and str_u in fokus_cache:
+                parsed_val = fokus_cache[str_u]
+            else:
+                try:
+                    u_val = uuid.UUID(str_u)
+                    fr = db.query(KSTFokusRiset).filter(KSTFokusRiset.id == u_val).first()
+                    if fr and fr.nama:
+                        parsed_val = fr.nama
+                        if fokus_cache is not None:
+                            fokus_cache[str_u] = fr.nama
+                except ValueError:
+                    pass
+
+        if isinstance(parsed_val, list):
+            for item in parsed_val:
+                if item and item not in grouped[label_key]["values"]:
+                    grouped[label_key]["values"].append(item)
         else:
-            kab = parts[0]
-            prov = loc.wilayah or ""
-    elif not prov and loc.wilayah:
-        prov = loc.wilayah
+            if parsed_val and parsed_val not in grouped[label_key]["values"]:
+                grouped[label_key]["values"].append(parsed_val)
+
+    extra_fields = []
+    for g in grouped.values():
+        vals = g["values"]
+        if not vals:
+            continue
+        is_multi = len(vals) > 1 or g["slug"] in ["fokus-riset", "fasilitas", "organisasi-riset", "pusat-riset", "pemanfaatan-layanan"]
+        final_val = vals if is_multi else vals[0]
+        extra_fields.append({
+            "label": g["label"],
+            "slug": g["slug"],
+            "icon": g["icon"],
+            "value": final_val,
+            "created_at": g.get("created_at"),
+            "updated_at": g.get("updated_at") or g.get("created_at")
+        })
+
+    # 2. Sinkronkan galeri dengan URL lengkap, thumbnail, caption, dan sort
+    galeri_list = []
+    video_exts = (".mp4", ".webm", ".mov", ".m4v", ".ogg", ".avi", ".mkv")
+
+    raw_galeri = []
+    if hasattr(loc, "galeri_items") and loc.galeri_items:
+        raw_galeri = loc.galeri_items
+    elif loc.galeri:
+        raw_galeri = loc.galeri
+
+    for idx, g in enumerate(raw_galeri):
+        if hasattr(g, "url"):
+            raw_u = g.url
+            tipe_from_obj = g.tipe
+            caption_from_obj = g.caption
+            sort_from_obj = g.sort
+            g_created_at = getattr(g, "created_at", None)
+            g_updated_at = getattr(g, "updated_at", None) or g_created_at
+        elif isinstance(g, dict):
+            raw_u = g.get("url")
+            tipe_from_obj = g.get("type") or g.get("tipe")
+            caption_from_obj = g.get("caption") or g.get("keterangan")
+            sort_from_obj = g.get("sort")
+            g_created_at = g.get("created_at")
+            g_updated_at = g.get("updated_at") or g_created_at
+        else:
+            raw_u = g
+            tipe_from_obj = None
+            caption_from_obj = None
+            sort_from_obj = idx
+            g_created_at = None
+            g_updated_at = None
+
+        u_full = build_full_url(raw_u)
+        is_video = any(u_full.lower().endswith(ext) for ext in video_exts) if u_full else False
+        tipe_val = tipe_from_obj if tipe_from_obj else ("video" if is_video else "foto")
+        t_full = (g.get("thumbnail_url") or build_thumbnail_url(raw_u)) if isinstance(g, dict) else build_thumbnail_url(raw_u)
+        caption_val = str(caption_from_obj or "").strip()
+        sort_val = sort_from_obj if (sort_from_obj is not None and isinstance(sort_from_obj, int)) else idx
+
+        galeri_list.append({
+            "type": tipe_val,
+            "url": u_full,
+            "thumbnail_url": t_full,
+            "sort": sort_val,
+            "caption": caption_val,
+            "created_at": g_created_at,
+            "updated_at": g_updated_at or g_created_at
+        })
+
+    galeri_list.sort(key=lambda x: (0 if x["type"] == "foto" else 1, x["sort"]))
+
+    foto_count = 0
+    video_count = 0
+    for item in galeri_list:
+        if item["type"] == "foto":
+            foto_count += 1
+            if not item["caption"]:
+                item["caption"] = f"Foto {foto_count}"
+        else:
+            video_count += 1
+            if not item["caption"]:
+                item["caption"] = f"Video {video_count}"
+
+    jk_nama = loc.jenis_kawasan.nama if loc.jenis_kawasan else (getattr(loc, "jenis_kawasan_nama", None) or None)
 
     fokus_list = []
     if hasattr(loc, "tema_riset") and loc.tema_riset:
@@ -279,60 +406,133 @@ def _build_ringkas_dict(loc: KSTLokasi) -> dict:
             if t and t not in fokus_list:
                 fokus_list.append(t)
 
-    jk_name = loc.jenis_kawasan.nama if loc.jenis_kawasan else (loc.jenis_kawasan_nama or "")
-    kota_prov = loc.kota_provinsi or (f"{kab}, {prov}" if kab and prov else (prov or kab or ""))
-
-    return {
+    data = {
         "id": loc.id,
         "nama": loc.nama,
         "slug": loc.slug,
-        "jenis_kawasan": jk_name,
+        "jenis_kawasan": jk_nama,
+        "jenis_kawasan_nama": jk_nama,
         "jenis_kawasan_id": loc.jenis_kawasan_id,
-        "alamat": loc.alamat or "",
-        "kota_provinsi": kota_prov,
-        "wilayah": {
-            "provinsi": prov,
-            "kabupaten": kab
-        },
+        "pengelola": loc.pengelola or "BRIN",
+        "status": loc.status or "Aktif",
+        "tahun_operasi": loc.tahun_operasi,
+        "alamat": loc.alamat,
+        "kota_provinsi": loc.kota_provinsi,
+        "wilayah": loc.wilayah,
+        "provinsi": loc.provinsi.nama if loc.provinsi else None,
+        "kabupaten": loc.kabupaten_kota.nama if loc.kabupaten_kota else None,
+        "latitude": loc.latitude,
+        "longitude": loc.longitude,
         "koordinat": {
             "latitude": loc.latitude,
             "longitude": loc.longitude,
             "lat": loc.latitude,
             "lng": loc.longitude
         },
+        "luas_ha": loc.luas_ha,
+        "deskripsi": loc.deskripsi,
+        "fokus_riset": fokus_list,
+        "galeri": galeri_list,
+        "extra_fields": extra_fields,
+        "created_at": loc.created_at,
+        "updated_at": loc.updated_at or loc.created_at
+    }
+
+    return data
+
+
+def _build_ringkas_dict(loc: KSTLokasi, db: Optional[Session] = None) -> dict:
+    if db is not None:
+        return format_lokasi_publik(loc, db)
+    jk_name = loc.jenis_kawasan.nama if loc.jenis_kawasan else (getattr(loc, "jenis_kawasan_nama", None) or "")
+    kota_prov = loc.kota_provinsi or ""
+    return {
+        "id": loc.id,
+        "nama": loc.nama,
+        "slug": loc.slug,
+        "jenis_kawasan": jk_name,
+        "jenis_kawasan_nama": jk_name,
+        "jenis_kawasan_id": loc.jenis_kawasan_id,
+        "pengelola": loc.pengelola or "BRIN",
+        "status": loc.status or "Aktif",
+        "tahun_operasi": loc.tahun_operasi,
+        "alamat": loc.alamat or "",
+        "kota_provinsi": kota_prov,
+        "wilayah": loc.wilayah,
+        "provinsi": loc.provinsi.nama if loc.provinsi else None,
+        "kabupaten": loc.kabupaten_kota.nama if loc.kabupaten_kota else None,
         "latitude": loc.latitude,
         "longitude": loc.longitude,
+        "koordinat": {
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "lat": loc.latitude,
+            "lng": loc.longitude
+        },
+        "luas_ha": loc.luas_ha,
         "deskripsi": loc.deskripsi,
-        "fokus_riset": fokus_list
+        "fokus_riset": loc.fokus_riset if hasattr(loc, "fokus_riset") else [],
+        "galeri": [],
+        "extra_fields": [],
+        "created_at": loc.created_at,
+        "updated_at": loc.updated_at or loc.created_at
     }
 
 
-@router.get("", response_model=LokasiRingkasListResponse)
+@router.get("", response_model=LokasiPublikListResponse)
 def get_all_locations_ringkas(
+    search: Optional[str] = Query(None, description="Pencarian teks bebas nama, wilayah, alamat, deskripsi"),
+    wilayah: Optional[str] = Query(None, description="Filter wilayah: Jawa, Sumatera, Kalimantan, Sulawesi, Bali-Nusa Tenggara, Maluku, Papua"),
+    jenis_kawasan: Optional[str] = Query(None, description="Filter jenis kawasan (UUID, nama, atau slug)"),
+    fokus_riset: Optional[str] = Query(None, description="Filter fokus riset (UUID, nama, atau slug)"),
     db: Session = Depends(get_db)
 ):
+    if any([search, wilayah, jenis_kawasan, fokus_riset]):
+        payload = LokasiFilterRequest(
+            wilayah=[wilayah] if wilayah else None,
+            jenis_kawasan=[jenis_kawasan] if jenis_kawasan else None,
+            fokus_riset=[fokus_riset] if fokus_riset else None,
+            search_input=search
+        )
+        return filter_locations(payload=payload, db=db)
+
+    fokus_cache = {str(fr.id).lower(): fr.nama for fr in db.query(KSTFokusRiset).all() if fr.id and fr.nama}
 
     rows = (
         db.query(KSTLokasi)
+        .options(
+            subqueryload(KSTLokasi.jenis_kawasan),
+            subqueryload(KSTLokasi.provinsi),
+            subqueryload(KSTLokasi.kabupaten_kota),
+            subqueryload(KSTLokasi.galeri_items),
+            subqueryload(KSTLokasi.extra_fields).joinedload(NilaiDataLokasi.field_label)
+        )
         .filter(KSTLokasi.is_draft == False)
         .order_by(KSTLokasi.nama.asc())
         .all()
     )
 
-    results = [_build_ringkas_dict(loc) for loc in rows]
+    results = [format_lokasi_publik(loc, db, fokus_cache=fokus_cache) for loc in rows]
     return {
         "total": len(results),
         "data": results
     }
 
 
-@router.post("/filter", response_model=LokasiRingkasListResponse)
+@router.post("/filter", response_model=LokasiPublikListResponse)
 def filter_locations(
     payload: Optional[LokasiFilterRequest] = None,
     db: Session = Depends(get_db)
 ):
     query = (
         db.query(KSTLokasi)
+        .options(
+            subqueryload(KSTLokasi.jenis_kawasan),
+            subqueryload(KSTLokasi.provinsi),
+            subqueryload(KSTLokasi.kabupaten_kota),
+            subqueryload(KSTLokasi.galeri_items),
+            subqueryload(KSTLokasi.extra_fields).joinedload(NilaiDataLokasi.field_label)
+        )
         .outerjoin(WilayahProvinsi, KSTLokasi.provinsi_kode == WilayahProvinsi.kode)
         .outerjoin(WilayahKabupatenKota, KSTLokasi.kabupaten_kota_kode == WilayahKabupatenKota.kode)
         .filter(KSTLokasi.is_draft == False)
@@ -436,11 +636,13 @@ def filter_locations(
                     filtered_rows.append(loc)
             rows = filtered_rows
 
-    results = [_build_ringkas_dict(loc) for loc in rows]
+    fokus_cache = {str(fr.id).lower(): fr.nama for fr in db.query(KSTFokusRiset).all() if fr.id and fr.nama}
+    results = [format_lokasi_publik(loc, db, fokus_cache=fokus_cache) for loc in rows]
     return {
         "total": len(results),
         "data": results
     }
+
 
 
 @router.get("/peta", response_model=List[LokasiMapItem])
@@ -528,6 +730,8 @@ def get_field_labels(db: Session = Depends(get_db)):
             "slug": lbl.slug,
             "placeholder": lbl.placeholder,
             "icon": lbl.icon,
+            "created_at": lbl.created_at,
+            "updated_at": lbl.updated_at or lbl.created_at,
         }
         for lbl in labels
     ]
@@ -565,6 +769,8 @@ def create_field_label(
         "slug": lbl.slug,
         "placeholder": lbl.placeholder,
         "icon": lbl.icon,
+        "created_at": lbl.created_at,
+        "updated_at": lbl.updated_at or lbl.created_at,
     }
 
 
@@ -601,6 +807,8 @@ def update_field_label(
         "tipe": lbl.tipe,
         "placeholder": lbl.placeholder,
         "icon": lbl.icon,
+        "created_at": lbl.created_at,
+        "updated_at": lbl.updated_at or lbl.created_at,
     }
 
 
@@ -654,6 +862,7 @@ def get_nearby_locations(
                p.nama AS provinsi,
                g.url AS thumbnail_url,
                l.latitude, l.longitude,
+               l.created_at, l.updated_at,
                ST_Distance(l.geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000.0 AS distance_km
         FROM kst_lokasi l
         LEFT JOIN kst_provinsi p ON l.provinsi_kode = p.kode
@@ -686,6 +895,8 @@ def get_nearby_locations(
             "lat": d.get("latitude"),
             "lng": d.get("longitude")
         }
+        d["created_at"] = d.get("created_at")
+        d["updated_at"] = d.get("updated_at") or d.get("created_at")
         results.append(d)
 
     return results

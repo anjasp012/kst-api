@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from typing import Optional, List, Any, Dict
 from datetime import datetime
@@ -120,6 +121,8 @@ class LokasiMapItem(BaseModel):
     longitude: Optional[float] = None
     tema_riset: List[str] = []
     is_draft: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     @field_validator("thumbnail_url", mode="after")
     @classmethod
@@ -144,6 +147,8 @@ class LokasiRingkasItem(BaseModel):
     longitude: Optional[float] = None
     deskripsi: Optional[str] = None
     fokus_riset: List[str] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -151,7 +156,12 @@ class LokasiRingkasItem(BaseModel):
 
 class LokasiRingkasListResponse(BaseModel):
     total: int
-    data: List[LokasiRingkasItem]
+    data: List[LokasiPublikDetail]
+
+
+class LokasiPublikListResponse(BaseModel):
+    total: int
+    data: List[LokasiPublikDetail]
 
 
 class LokasiFilterRequest(BaseModel):
@@ -187,6 +197,8 @@ class ItemDataTambahanPublik(BaseModel):
     slug: str
     icon: Optional[str] = "FileText"
     value: Any
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -199,6 +211,8 @@ class ItemDataTambahan(BaseModel):
     slug: str
     icon: Optional[str] = "FileText"
     value: Any
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -396,6 +410,8 @@ class ItemGaleriPublik(BaseModel):
     thumbnail_url: Optional[str] = Field(None, description="Full URL thumbnail media")
     sort: int = Field(0, description="Nomor urutan media")
     caption: str = Field("", description="Keterangan / caption media")
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -407,6 +423,7 @@ class LokasiPublikDetail(BaseModel):
     slug: str
     jenis_kawasan: Optional[str] = Field(None, description="Kategori / Jenis Kawasan")
     jenis_kawasan_nama: Optional[str] = None
+    jenis_kawasan_id: Optional[uuid.UUID] = None
     pengelola: Optional[str] = "BRIN"
     status: Optional[str] = "Aktif"
     tahun_operasi: Optional[int] = None
@@ -420,8 +437,11 @@ class LokasiPublikDetail(BaseModel):
     koordinat: Optional[KoordinatRingkas] = None
     luas_ha: Optional[float] = None
     deskripsi: Optional[str] = None
+    fokus_riset: Optional[List[str]] = Field(default_factory=list)
     galeri: List[ItemGaleriPublik] = Field(default_factory=list, description="Daftar media galeri terurut berdasarkan sort")
     extra_fields: List[ItemDataTambahanPublik] = Field(default_factory=list)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -454,6 +474,8 @@ class LabelDataLokasiItem(BaseModel):
     slug: str
     placeholder: Optional[str] = None
     icon: Optional[str] = "FileText"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

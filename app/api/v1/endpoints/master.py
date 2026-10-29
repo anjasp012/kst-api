@@ -25,6 +25,8 @@ def get_master_data(
             "kode": p_data["kode"],
             "nama": p_data["nama"],
             "total_lokasi": p_data["total_lokasi"],
+            "created_at": p_data.get("created_at"),
+            "updated_at": p_data.get("updated_at") or p_data.get("created_at"),
             "kabupaten_kota": kabs_list
         })
 
@@ -42,7 +44,9 @@ def get_master_data(
             "parent_nama": jk.parent.nama if jk.parent else None,
             "nama": jk.nama,
             "slug": jk.slug,
-            "deskripsi": jk.deskripsi
+            "deskripsi": jk.deskripsi,
+            "created_at": jk.created_at,
+            "updated_at": jk.updated_at or jk.created_at
         }
         for jk in jenis_kawasan_items
     ]
@@ -70,7 +74,9 @@ def get_master_data(
         {
             "id": str(t.id),
             "nama": t.nama,
-            "slug": t.slug
+            "slug": t.slug,
+            "created_at": getattr(t, "created_at", None),
+            "updated_at": getattr(t, "updated_at", None) or getattr(t, "created_at", None)
         }
         for t in fokus_items
     ]
