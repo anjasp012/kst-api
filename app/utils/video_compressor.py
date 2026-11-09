@@ -16,7 +16,7 @@ _CACHED_FFMPEG_CMD: Optional[str] = None
 def get_resolution_label(w: int, h: int) -> str:
     """Mengubah dimensi pixel ke label resolusi (4K, 2K, 1080p, 720p, 480p, 360p)."""
     if not w or not h:
-        return "720p"
+        return "1080p"
     min_dim = min(w, h)
     if min_dim >= 2000:
         return "4K"
@@ -31,6 +31,47 @@ def get_resolution_label(w: int, h: int) -> str:
     elif min_dim >= 320:
         return "360p"
     return f"{min_dim}p"
+
+
+def get_video_dimensions(video_path: str, ffmpeg_exe: Optional[str] = None) -> Tuple[int, int]:
+    """
+    Mendeteksi dimensi (width, height) video menggunakan FFmpeg atau OpenCV.
+    Mengembalikan (0, 0) jika gagal dideteksi.
+    """
+    if not os.path.isfile(video_path):
+        return 0, 0
+
+    if not ffmpeg_exe:
+        ffmpeg_exe = get_ffmpeg_cmd()
+
+    # 1. Coba probe metadata dengan FFmpeg
+    if ffmpeg_exe:
+        try:
+            cmd = [ffmpeg_exe, "-i", video_path]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+            stderr_text = (res.stderr or b"").decode("utf-8", errors="ignore")
+            matches = re.findall(r'Video:.*?\b(\d{3,5})x(\d{3,5})\b', stderr_text)
+            if matches:
+                w, h = int(matches[0][0]), int(matches[0][1])
+                if w > 0 and h > 0:
+                    return w, h
+        except Exception as e:
+            logger.debug(f"[VideoCompressor] Probe dimensi FFmpeg gagal: {e}")
+
+    # 2. Fallback menggunakan OpenCV jika terpasang
+    try:
+        import cv2
+        cap = cv2.VideoCapture(video_path)
+        if cap.isOpened():
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            if w > 0 and h > 0:
+                return w, h
+    except Exception:
+        pass
+
+    return 0, 0
 
 
 def format_file_size(size_bytes: int) -> str:
@@ -125,6 +166,36 @@ def is_ffmpeg_available() -> bool:
     return get_ffmpeg_cmd() is not None
 
 
+def get_safe_ffmpeg_threads() -> int:
+    """
+    Menghitung batas thread FFmpeg yang ramah server untuk VPS multi-website:
+    - Tidak memonopoli CPU 100% (menyisakan core untuk Nginx/Apache, MySQL, dan website lain).
+    - Mencegah throttling CPU oleh provider VPS dan mencegah web lain kena timeout/504.
+    """
+    total_cores = os.cpu_count() or 1
+    if total_cores <= 1:
+        return 1
+    elif total_cores == 2:
+        return 1  # 1 thread kompresi, 1 thread tersisa untuk web server & DB
+    elif total_cores <= 4:
+        return 2  # 2 thread kompresi, 2 thread untuk sistem & web lain
+    else:
+        return min(3, max(1, total_cores - 2))
+
+
+def get_nice_prefix() -> list:
+    """
+    Di Linux, gunakan utilitas 'nice -n 15' agar proses kompresi berjalan dengan
+    prioritas CPU rendah (background priority). Kernel Linux akan selalu mendahulukan
+    Nginx, MySQL, dan request website lain daripada FFmpeg.
+    """
+    if sys.platform != "win32":
+        nice_bin = shutil.which("nice")
+        if nice_bin:
+            return [nice_bin, "-n", "15"]
+    return []
+
+
 def extract_video_thumbnail_ffmpeg(
     video_path: str,
     thumb_dest_path: str,
@@ -161,17 +232,19 @@ def extract_video_thumbnail_ffmpeg(
 def compress_video(
     input_path: str,
     output_path: Optional[str] = None,
-    max_dimension: int = 1280,
-    crf: int = 26,
-    preset: str = "veryfast"
+    max_dimension: int = 1920,
+    crf: int = 24,
+    preset: str = "ultrafast"
 ) -> Dict[str, Any]:
     """
     Mengompresi file video untuk kebutuhan web:
-    - Codec video: H.264 (libx264) dengan pixel format yuv420p (kompatibel 100% browser & HP)
-    - Codec audio: AAC 128kbps stereo
-    - Resolusi maks: max_dimension (default 1280px / 720p HD)
-    - CRF: 26 (mengurangi ukuran file drastis 60-85% dengan kualitas visual prima)
-    - Flag '+faststart': Memindahkan moov atom ke awal file untuk INSTANT STREAMING di browser
+    - Target resolusi minimal 1080p Full HD (max 1920px).
+    - Aturan resolusi: Jika video <= 1080p (contoh: 1080p, 720p, 480p), video TIDAK dikompres (pertahankan file asli).
+    - Jika video > 1080p (contoh: 4K 2160p, 2K/1440p), video dikompresi ke 1080p.
+    - Codec video: H.264 (libx264) dengan pixel format yuv420p (kompatibel 100% browser & HP).
+    - Codec audio: AAC 128kbps stereo.
+    - Preset: ultrafast (super kencang di VPS).
+    - Flag '+faststart': Memindahkan moov atom ke awal file untuk INSTANT STREAMING di browser.
     - Fallback aman: Jika gagal atau ukuran hasil kompresi lebih besar, file asli tetap dipertahankan.
     """
     if not os.path.isfile(input_path):
@@ -198,6 +271,32 @@ def compress_video(
             "info": "FFmpeg tidak terpasang di sistem. Video disimpan tanpa kompresi."
         }
 
+    # 1. Deteksi dimensi asli video
+    orig_w, orig_h = get_video_dimensions(input_path, ffmpeg_exe)
+    detected_res = get_resolution_label(orig_w, orig_h) if (orig_w and orig_h) else "1080p"
+
+    # 2. Aturan kompresi: Jika resolusi video <= 1080p, JANGAN dikompres (pertahankan file asli)
+    if orig_w > 0 and orig_h > 0:
+        is_le_1080 = max(orig_w, orig_h) <= 1920 and min(orig_w, orig_h) <= 1080
+        if is_le_1080:
+            logger.info(
+                f"[VideoCompressor] Video {input_path} terdeteksi {orig_w}x{orig_h} ({detected_res}) <= 1080p. "
+                "Kompresi dilewati sesuai instruksi minimal 1080p."
+            )
+            return {
+                "success": True,
+                "is_compressed": False,
+                "reason": "resolution_le_1080p",
+                "resolution": detected_res,
+                "original_size": original_size,
+                "compressed_size": original_size,
+                "saved_bytes": 0,
+                "saved_percent": 0.0,
+                "final_path": input_path,
+                "final_filename": os.path.basename(input_path),
+                "info": f"Resolusi {detected_res} (<= 1080p), ukuran dipertahankan tanpa kompresi."
+            }
+
     # Tentukan output path (selalu gunakan kontainer MP4 untuk kompatibilitas web optimal)
     input_dir = os.path.dirname(input_path)
     base_name = os.path.splitext(os.path.basename(input_path))[0]
@@ -209,15 +308,24 @@ def compress_video(
 
     try:
         # Filter scale menjaga rasio aspek dan memastikan dimensi genap (-2)
-        scale_filter = f"scale='min({max_dimension},iw)':-2"
+        # Jika video portrait/vertikal (tinggi > lebar), batasi tinggi max 1920
+        if orig_h > orig_w:
+            scale_filter = f"scale=-2:'min({max_dimension},ih)':flags=fast_bilinear"
+        else:
+            scale_filter = f"scale='min({max_dimension},iw)':-2:flags=fast_bilinear"
 
-        cmd = [
+        safe_threads = str(get_safe_ffmpeg_threads())
+        nice_prefix = get_nice_prefix()
+
+        cmd = nice_prefix + [
             ffmpeg_exe,
             "-y",                          # Timpa jika ada
+            "-threads", safe_threads,      # Batas thread aman, menyisakan core untuk web & DB lain
             "-i", input_path,              # File input
-            "-vf", scale_filter,           # Resize max dimension
+            "-vf", scale_filter,           # Resize max dimension ke 1080p
+            "-r", "30",                    # Batasi max 30 FPS (hemat waktu separuh untuk video 60fps)
             "-c:v", "libx264",             # Universal H.264 video codec
-            "-preset", preset,             # Kecepatan encoding vs kompresi
+            "-preset", preset,             # ultrafast (super kencang di VPS)
             "-crf", str(crf),              # Constant Rate Factor (kualitas visual)
             "-pix_fmt", "yuv420p",         # Kompatibel di semua browser, iOS & Android
             "-c:a", "aac",                 # Universal AAC audio
@@ -228,7 +336,10 @@ def compress_video(
             temp_output_path
         ]
 
-        logger.info(f"[VideoCompressor] Memulai kompresi video: {input_path} (Ukuran Asli: {format_file_size(original_size)})")
+        logger.info(
+            f"[VideoCompressor] Memulai kompresi video > 1080p ({detected_res}) ke 1080p [threads={safe_threads}]: "
+            f"{input_path} (Ukuran Asli: {format_file_size(original_size)})"
+        )
         
         # Eksekusi proses ffmpeg dengan timeout wajar (maks 120 detik)
         process = subprocess.run(
@@ -240,11 +351,13 @@ def compress_video(
 
         # Jika gagal dengan audio (misal video tanpa track suara), coba fallback tanpa audio (-an)
         if process.returncode != 0:
-            cmd_no_audio = [
+            cmd_no_audio = nice_prefix + [
                 ffmpeg_exe,
                 "-y",
+                "-threads", safe_threads,
                 "-i", input_path,
                 "-vf", scale_filter,
+                "-r", "30",
                 "-c:v", "libx264",
                 "-preset", preset,
                 "-crf", str(crf),
@@ -277,6 +390,8 @@ def compress_video(
                 "saved_bytes": 0,
                 "saved_percent": 0.0,
                 "final_path": input_path,
+                "final_filename": os.path.basename(input_path),
+                "resolution": detected_res,
                 "info": "Gagal memproses video via FFmpeg. File asli dipertahankan."
             }
 
@@ -284,7 +399,6 @@ def compress_video(
         compressed_size = os.path.getsize(temp_output_path)
 
         # Jika hasil kompresi lebih kecil (atau format awal bukan mp4 web-friendly), gunakan hasil kompresi
-        # Bandingkan jika ukuran hasil kompresi lebih hemat
         if compressed_size < original_size or not input_path.lower().endswith(".mp4"):
             saved_bytes = max(0, original_size - compressed_size)
             saved_percent = round((saved_bytes / original_size) * 100, 1) if original_size > 0 else 0.0
@@ -306,19 +420,17 @@ def compress_video(
                 os.rename(temp_output_path, final_mp4_path)
 
             # Deteksi resolusi akhir
-            res_label = "720p"
+            res_label = "1080p"
             try:
-                combined_err = (process.stderr or b"").decode("utf-8", errors="ignore")
-                matches = re.findall(r'Video:.*?\s(\d{3,4})x(\d{3,4})', combined_err)
-                if matches:
-                    last_match = matches[-1]
-                    res_label = get_resolution_label(int(last_match[0]), int(last_match[1]))
+                out_w, out_h = get_video_dimensions(final_mp4_path, ffmpeg_exe)
+                if out_w and out_h:
+                    res_label = get_resolution_label(out_w, out_h)
             except Exception:
                 pass
 
             orig_str = format_file_size(original_size)
             comp_str = format_file_size(compressed_size)
-            info_msg = f"Berhasil dikompresi: {orig_str} ➔ {comp_str} (Hemat {saved_percent}%)"
+            info_msg = f"Berhasil dikompresi ke {res_label}: {orig_str} ➔ {comp_str} (Hemat {saved_percent}%)"
             logger.info(f"[VideoCompressor] {info_msg}")
 
             return {
@@ -342,7 +454,7 @@ def compress_video(
             return {
                 "success": True,
                 "is_compressed": False,
-                "resolution": "720p",
+                "resolution": detected_res,
                 "original_size": original_size,
                 "compressed_size": original_size,
                 "saved_bytes": 0,

@@ -18,7 +18,9 @@ from app.utils.video_compressor import (
     compress_video,
     extract_video_thumbnail_ffmpeg,
     get_ffmpeg_cmd,
-    is_ffmpeg_available
+    is_ffmpeg_available,
+    get_video_dimensions,
+    get_resolution_label
 )
 
 from app.models.wilayah import WilayahProvinsi, WilayahKabupatenKota
@@ -299,9 +301,9 @@ def upload_file(
             print(f"Warning thumbnail generation failed: {e}")
 
     elif ext in video_extensions:
-        # Jalankan auto-compress video jika opsi compress aktif
+        # Jalankan auto-compress video jika opsi compress aktif (hanya mengompres video > 1080p ke 1080p)
         if compress:
-            comp_result = compress_video(destination_path, max_dimension=1280, crf=26, preset="veryfast")
+            comp_result = compress_video(destination_path, max_dimension=1920, crf=24, preset="ultrafast")
             if comp_result.get("success"):
                 destination_path = comp_result.get("final_path", destination_path)
                 unique_filename = comp_result.get("final_filename", unique_filename)
@@ -312,6 +314,15 @@ def upload_file(
                 resolution = comp_result.get("resolution")
             else:
                 compression_info = comp_result.get("info")
+
+        # Jika resolusi belum terdeteksi (misal opsi compress off), deteksi resolusi asli
+        if not resolution:
+            try:
+                vid_w, vid_h = get_video_dimensions(destination_path)
+                if vid_w and vid_h:
+                    resolution = get_resolution_label(vid_w, vid_h)
+            except Exception:
+                pass
 
         base_name = os.path.splitext(unique_filename)[0]
         thumb_filename = f"{base_name}.jpg"
