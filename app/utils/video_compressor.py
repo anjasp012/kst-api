@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import glob
 import shutil
 import logging
@@ -11,6 +12,26 @@ logger = logging.getLogger("video_compressor")
 # Cache ffmpeg command path once resolved
 _CACHED_FFMPEG_CMD: Optional[str] = None
 _CHECKED_FFMPEG: bool = False
+
+
+def get_resolution_label(w: int, h: int) -> str:
+    """Mengubah dimensi pixel ke label resolusi (4K, 2K, 1080p, 720p, 480p, 360p)."""
+    if not w or not h:
+        return "720p"
+    min_dim = min(w, h)
+    if min_dim >= 2000:
+        return "4K"
+    elif min_dim >= 1400:
+        return "2K"
+    elif min_dim >= 950:
+        return "1080p"
+    elif min_dim >= 650:
+        return "720p"
+    elif min_dim >= 440:
+        return "480p"
+    elif min_dim >= 320:
+        return "360p"
+    return f"{min_dim}p"
 
 
 def format_file_size(size_bytes: int) -> str:
@@ -189,6 +210,7 @@ def compress_video(
             "-pix_fmt", "yuv420p",         # Kompatibel di semua browser, iOS & Android
             "-c:a", "aac",                 # Universal AAC audio
             "-b:a", "128k",                # Audio bitrate yang jernih & hemat
+            "-ac", "2",                    # Downmix stereo agar kompatibel di semua browser
             "-movflags", "+faststart",     # Instant web playback tanpa nunggu download
             "-max_muxing_queue_size", "1024",
             temp_output_path
@@ -203,6 +225,31 @@ def compress_video(
             stderr=subprocess.PIPE,
             timeout=120
         )
+
+        # Jika gagal dengan audio (misal video tanpa track suara), coba fallback tanpa audio (-an)
+        if process.returncode != 0:
+            cmd_no_audio = [
+                ffmpeg_exe,
+                "-y",
+                "-i", input_path,
+                "-vf", scale_filter,
+                "-c:v", "libx264",
+                "-preset", preset,
+                "-crf", str(crf),
+                "-pix_fmt", "yuv420p",
+                "-an",
+                "-movflags", "+faststart",
+                "-max_muxing_queue_size", "1024",
+                temp_output_path
+            ]
+            process_no_audio = subprocess.run(
+                cmd_no_audio,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=120
+            )
+            if process_no_audio.returncode == 0:
+                process = process_no_audio
 
         if process.returncode != 0:
             err_output = process.stderr.decode("utf-8", errors="ignore")[-400:]
@@ -246,6 +293,17 @@ def compress_video(
                     os.remove(final_mp4_path)
                 os.rename(temp_output_path, final_mp4_path)
 
+            # Deteksi resolusi akhir
+            res_label = "720p"
+            try:
+                combined_err = (process.stderr or b"").decode("utf-8", errors="ignore")
+                matches = re.findall(r'Video:.*?\s(\d{3,4})x(\d{3,4})', combined_err)
+                if matches:
+                    last_match = matches[-1]
+                    res_label = get_resolution_label(int(last_match[0]), int(last_match[1]))
+            except Exception:
+                pass
+
             orig_str = format_file_size(original_size)
             comp_str = format_file_size(compressed_size)
             info_msg = f"Berhasil dikompresi: {orig_str} ➔ {comp_str} (Hemat {saved_percent}%)"
@@ -254,6 +312,7 @@ def compress_video(
             return {
                 "success": True,
                 "is_compressed": True,
+                "resolution": res_label,
                 "original_size": original_size,
                 "compressed_size": compressed_size,
                 "saved_bytes": saved_bytes,
@@ -271,6 +330,7 @@ def compress_video(
             return {
                 "success": True,
                 "is_compressed": False,
+                "resolution": "720p",
                 "original_size": original_size,
                 "compressed_size": original_size,
                 "saved_bytes": 0,

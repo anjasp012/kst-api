@@ -260,6 +260,7 @@ def upload_file(
     compressed_size = original_size
     is_compressed = False
     compression_info = None
+    resolution = None
 
     # Jika file adalah foto/gambar, buat versi thumbnail dan optimasi foto utama
     if ext in {".jpg", ".jpeg", ".png", ".webp"}:
@@ -303,6 +304,7 @@ def upload_file(
                 original_size = comp_result.get("original_size", original_size)
                 compressed_size = comp_result.get("compressed_size", compressed_size)
                 compression_info = comp_result.get("info")
+                resolution = comp_result.get("resolution")
             else:
                 compression_info = comp_result.get("info")
 
@@ -369,7 +371,8 @@ def upload_file(
         original_size=original_size,
         compressed_size=compressed_size,
         is_compressed=is_compressed,
-        compression_info=compression_info
+        compression_info=compression_info,
+        resolution=resolution
     )
 
 

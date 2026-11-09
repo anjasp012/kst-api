@@ -13,6 +13,7 @@ class UploadResponse(BaseModel):
     compressed_size: Optional[int] = None
     is_compressed: Optional[bool] = False
     compression_info: Optional[str] = None
+    resolution: Optional[str] = None
 
 
 class KSTAnalyticsResponse(BaseModel):
