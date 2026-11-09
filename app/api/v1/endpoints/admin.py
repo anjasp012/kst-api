@@ -238,6 +238,25 @@ def upload_file(
     thumbnail_url = None
     thumbnail_relative_url = None
     original_size = os.path.getsize(destination_path)
+
+    # Validasi batas ukuran file (video max 250MB, gambar max 30MB)
+    max_video_size = 250 * 1024 * 1024
+    max_image_size = 30 * 1024 * 1024
+    if ext in video_extensions and original_size > max_video_size:
+        if os.path.isfile(destination_path):
+            os.remove(destination_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ukuran file video ({original_size / (1024*1024):.1f} MB) melebihi batas maksimal 250 MB."
+        )
+    elif ext in image_extensions and original_size > max_image_size:
+        if os.path.isfile(destination_path):
+            os.remove(destination_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ukuran file gambar ({original_size / (1024*1024):.1f} MB) melebihi batas maksimal 30 MB."
+        )
+
     compressed_size = original_size
     is_compressed = False
     compression_info = None
