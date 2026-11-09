@@ -14,7 +14,12 @@ from app.schemas.admin import UploadResponse, KSTAnalyticsResponse
 from app.api.v1.deps import get_current_admin
 from app.core.helpers import build_full_url, build_thumbnail_url
 from app.core.config import UPLOADS_DIR, THUMBNAILS_DIR
-from app.utils.video_compressor import compress_video, extract_video_thumbnail_ffmpeg
+from app.utils.video_compressor import (
+    compress_video,
+    extract_video_thumbnail_ffmpeg,
+    get_ffmpeg_cmd,
+    is_ffmpeg_available
+)
 
 from app.models.wilayah import WilayahProvinsi, WilayahKabupatenKota
 from app.models.tema_riset import KSTFokusRiset
@@ -374,6 +379,18 @@ def upload_file(
         compression_info=compression_info,
         resolution=resolution
     )
+
+
+@router.get("/ffmpeg-status")
+def get_ffmpeg_status(admin: User = Depends(get_current_admin)):
+    cmd = get_ffmpeg_cmd()
+    return {
+        "ffmpeg_available": cmd is not None,
+        "ffmpeg_path": cmd,
+        "shutil_which": shutil.which("ffmpeg") or shutil.which("ffmpeg.exe"),
+        "has_usr_bin": os.path.isfile("/usr/bin/ffmpeg"),
+        "has_usr_local_bin": os.path.isfile("/usr/local/bin/ffmpeg"),
+    }
 
 
 # =========================================================================

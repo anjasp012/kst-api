@@ -11,7 +11,6 @@ logger = logging.getLogger("video_compressor")
 
 # Cache ffmpeg command path once resolved
 _CACHED_FFMPEG_CMD: Optional[str] = None
-_CHECKED_FFMPEG: bool = False
 
 
 def get_resolution_label(w: int, h: int) -> str:
@@ -50,20 +49,20 @@ def format_file_size(size_bytes: int) -> str:
 def get_ffmpeg_cmd() -> Optional[str]:
     """
     Mencari executable FFmpeg di berbagai sumber:
-    1. Environment variable FFMPEG_PATH
-    2. System PATH (shutil.which)
-    3. Package imageio-ffmpeg jika terpasang
-    4. Lokasi standar Laragon / Windows (C:\\laragon\\bin\\ffmpeg, C:\\ffmpeg, dll.)
+    1. Cache yang sudah valid
+    2. Environment variable FFMPEG_PATH
+    3. System PATH (shutil.which)
+    4. Lokasi standar Linux (/usr/bin/ffmpeg, /usr/local/bin/ffmpeg, dll.)
+    5. Package imageio-ffmpeg jika terpasang
+    6. Lokasi standar Windows / Laragon
     """
-    global _CACHED_FFMPEG_CMD, _CHECKED_FFMPEG
-    if _CHECKED_FFMPEG:
+    global _CACHED_FFMPEG_CMD
+    if _CACHED_FFMPEG_CMD and os.path.isfile(_CACHED_FFMPEG_CMD):
         return _CACHED_FFMPEG_CMD
-
-    _CHECKED_FFMPEG = True
 
     # 1. Cek environment variable
     custom_path = os.getenv("FFMPEG_PATH", "").strip()
-    if custom_path and os.path.isfile(custom_path) and os.access(custom_path, os.X_OK):
+    if custom_path and os.path.isfile(custom_path):
         _CACHED_FFMPEG_CMD = custom_path
         logger.info(f"[VideoCompressor] FFmpeg ditemukan dari env FFMPEG_PATH: {_CACHED_FFMPEG_CMD}")
         return _CACHED_FFMPEG_CMD
@@ -75,7 +74,20 @@ def get_ffmpeg_cmd() -> Optional[str]:
         logger.info(f"[VideoCompressor] FFmpeg ditemukan di PATH: {_CACHED_FFMPEG_CMD}")
         return _CACHED_FFMPEG_CMD
 
-    # 3. Cek library imageio_ffmpeg jika tersedia
+    # 3. Cek lokasi standar Linux (/usr/bin/ffmpeg dari apt install)
+    linux_paths = [
+        "/usr/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/bin/ffmpeg",
+        "/snap/bin/ffmpeg",
+    ]
+    for lp in linux_paths:
+        if os.path.isfile(lp) and os.access(lp, os.X_OK):
+            _CACHED_FFMPEG_CMD = lp
+            logger.info(f"[VideoCompressor] FFmpeg ditemukan di lokasi Linux: {_CACHED_FFMPEG_CMD}")
+            return _CACHED_FFMPEG_CMD
+
+    # 4. Cek library imageio_ffmpeg jika tersedia
     try:
         import imageio_ffmpeg
         ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
@@ -86,7 +98,7 @@ def get_ffmpeg_cmd() -> Optional[str]:
     except Exception:
         pass
 
-    # 4. Cek lokasi standar di Windows / Laragon
+    # 5. Cek lokasi standar di Windows / Laragon
     possible_paths = [
         r"C:\laragon\bin\ffmpeg\bin\ffmpeg.exe",
         r"C:\ffmpeg\bin\ffmpeg.exe",
@@ -104,7 +116,7 @@ def get_ffmpeg_cmd() -> Optional[str]:
             logger.info(f"[VideoCompressor] FFmpeg ditemukan di direktori Windows: {_CACHED_FFMPEG_CMD}")
             return _CACHED_FFMPEG_CMD
 
-    logger.warning("[VideoCompressor] FFmpeg tidak ditemukan. Video akan disimpan tanpa kompresi otomatis.")
+    logger.warning("[VideoCompressor] FFmpeg tidak ditemukan di sistem. Video disimpan tanpa kompresi.")
     return None
 
 
