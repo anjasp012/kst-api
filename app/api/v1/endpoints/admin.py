@@ -2,7 +2,7 @@ import os
 import shutil
 import uuid
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
@@ -14,6 +14,7 @@ from app.schemas.admin import UploadResponse, KSTAnalyticsResponse
 from app.api.v1.deps import get_current_admin
 from app.core.helpers import build_full_url, build_thumbnail_url
 from app.core.config import UPLOADS_DIR, THUMBNAILS_DIR
+from app.utils.video_compressor import compress_video, extract_video_thumbnail_ffmpeg
 
 from app.models.wilayah import WilayahProvinsi, WilayahKabupatenKota
 from app.models.tema_riset import KSTFokusRiset
@@ -213,6 +214,7 @@ def get_dashboard_analytics(
 def upload_file(
     file: UploadFile = File(...),
     video_thumbnail: Optional[UploadFile] = File(None),
+    compress: Optional[bool] = Query(True, description="Kompresi video otomatis untuk optimasi web"),
     admin: User = Depends(get_current_admin)
 ):
     video_extensions = {".mp4", ".webm", ".mov", ".m4v", ".ogg"}
@@ -235,6 +237,10 @@ def upload_file(
     media_tipe = "video" if ext in video_extensions else "foto"
     thumbnail_url = None
     thumbnail_relative_url = None
+    original_size = os.path.getsize(destination_path)
+    compressed_size = original_size
+    is_compressed = False
+    compression_info = None
 
     # Jika file adalah foto/gambar, buat versi thumbnail dan optimasi foto utama
     if ext in {".jpg", ".jpeg", ".png", ".webp"}:
@@ -268,6 +274,19 @@ def upload_file(
             print(f"Warning thumbnail generation failed: {e}")
 
     elif ext in video_extensions:
+        # Jalankan auto-compress video jika opsi compress aktif
+        if compress:
+            comp_result = compress_video(destination_path, max_dimension=1280, crf=26, preset="veryfast")
+            if comp_result.get("success"):
+                destination_path = comp_result.get("final_path", destination_path)
+                unique_filename = comp_result.get("final_filename", unique_filename)
+                is_compressed = comp_result.get("is_compressed", False)
+                original_size = comp_result.get("original_size", original_size)
+                compressed_size = comp_result.get("compressed_size", compressed_size)
+                compression_info = comp_result.get("info")
+            else:
+                compression_info = comp_result.get("info")
+
         base_name = os.path.splitext(unique_filename)[0]
         thumb_filename = f"{base_name}.jpg"
         thumb_dest = os.path.join(THUMBNAILS_DIR, thumb_filename)
@@ -288,7 +307,13 @@ def upload_file(
             except Exception as e:
                 print(f"Warning saving client video thumbnail failed: {e}")
 
-        # 2. Jika belum ada dan opencv terpasang di server, coba ekstrak frame video
+        # 2. Jika belum ada thumbnail, coba ekstrak menggunakan FFmpeg
+        if not thumbnail_url:
+            if extract_video_thumbnail_ffmpeg(destination_path, thumb_dest, time_sec=1.0):
+                thumbnail_url = build_full_url(f"/uploads/thumbnails/{thumb_filename}")
+                thumbnail_relative_url = f"/uploads/thumbnails/{thumb_filename}"
+
+        # 3. Jika belum ada dan opencv terpasang di server, coba ekstrak frame video via cv2
         if not thumbnail_url:
             try:
                 import cv2
@@ -321,7 +346,11 @@ def upload_file(
         thumbnail_url=thumbnail_url,
         thumbnail_relative_url=thumbnail_relative_url,
         original_filename=file.filename,
-        tipe=media_tipe
+        tipe=media_tipe,
+        original_size=original_size,
+        compressed_size=compressed_size,
+        is_compressed=is_compressed,
+        compression_info=compression_info
     )
 
 

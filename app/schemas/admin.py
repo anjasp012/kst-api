@@ -9,6 +9,10 @@ class UploadResponse(BaseModel):
     tipe: str = "foto"
     thumbnail_url: Optional[str] = None
     thumbnail_relative_url: Optional[str] = None
+    original_size: Optional[int] = None
+    compressed_size: Optional[int] = None
+    is_compressed: Optional[bool] = False
+    compression_info: Optional[str] = None
 
 
 class KSTAnalyticsResponse(BaseModel):
